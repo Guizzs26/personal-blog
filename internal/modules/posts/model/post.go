@@ -1,0 +1,21 @@
+package model
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// Post represents a model (database table) blog post
+type Post struct {
+	ID          uuid.UUID  `json:"id" db:"id"`
+	Title       string     `json:"title" db:"title"`
+	Content     string     `json:"content" db:"content"`
+	Slug        string     `json:"slug" db:"slug"`
+	AuthorID    uuid.UUID  `json:"author_id" db:"author_id"`
+	ImageID     uuid.UUID  `json:"image_id" db:"image_id"`
+	Published   bool       `json:"published" db:"published"`
+	PublishedAt *time.Time `json:"published_at,omitempty" db:"published_at"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+}
