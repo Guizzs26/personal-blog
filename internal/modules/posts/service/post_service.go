@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"golang.org/x/text/unicode/norm"
@@ -25,6 +26,11 @@ func NewPostService(repo repository.PostRepository) *PostService {
 
 // CreatePost creates a new post, generating a unique slug based on its title
 func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.Post, error) {
+	if post.Published && post.PublishedAt == nil {
+		now := time.Now()
+		post.PublishedAt = &now
+	}
+
 	slug, err := ps.generateUniqueSlug(ctx, post.Title)
 	if err != nil {
 		return nil, fmt.Errorf("service: failed to generate slug: %w", err)

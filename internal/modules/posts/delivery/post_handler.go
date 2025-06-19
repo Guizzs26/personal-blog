@@ -50,19 +50,12 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	now := time.Now()
-	var publishedAt *time.Time
-	if req.Published {
-		publishedAt = &now
-	}
-
 	post := model.Post{
-		Title:       req.Title,
-		Content:     req.Content,
-		AuthorID:    authorUUID,
-		ImageID:     imageUUID,
-		Published:   req.Published,
-		PublishedAt: publishedAt,
+		Title:     req.Title,
+		Content:   req.Content,
+		AuthorID:  authorUUID,
+		ImageID:   imageUUID,
+		Published: req.Published,
 	}
 
 	createdPost, err := ph.service.CreatePost(ctx, post)
