@@ -70,6 +70,7 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 		ID:        createdPost.ID.String(),
 		Title:     createdPost.Title,
 		Content:   createdPost.Content,
+		Slug:      createdPost.Slug,
 		AuthorID:  createdPost.AuthorID.String(),
 		ImageID:   createdPost.ImageID.String(),
 		Published: createdPost.Published,

@@ -56,3 +56,14 @@ func (pr *PostRepository) Create(post model.Post) (*model.Post, error) {
 
 	return &savedPost, nil
 }
+
+func (pr *PostRepository) ExistsBySlug(slug string) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM posts WHERE slug = $1)`
+
+	if err := pr.db.QueryRow(query, slug).Scan(&exists); err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
