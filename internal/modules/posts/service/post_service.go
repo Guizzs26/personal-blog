@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -12,22 +13,25 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
 )
 
+// PostService contains business logic for managing posts
 type PostService struct {
 	repo repository.PostRepository
 }
 
+// NewPostService creates a new PostService with the given repository
 func NewPostService(repo repository.PostRepository) *PostService {
 	return &PostService{repo: repo}
 }
 
-func (ps *PostService) CreatePost(post model.Post) (*model.Post, error) {
-	slug, err := ps.generateUniqueSlug(post.Title)
+// CreatePost creates a new post, generating a unique slug based on its title
+func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.Post, error) {
+	slug, err := ps.generateUniqueSlug(ctx, post.Title)
 	if err != nil {
 		return nil, fmt.Errorf("service: failed to generate slug: %w", err)
 	}
 
 	post.Slug = slug
-	createdPost, err := ps.repo.Create(post)
+	createdPost, err := ps.repo.Create(ctx, post)
 	if err != nil {
 		return nil, fmt.Errorf("service: failed to create post: %w", err)
 	}
@@ -35,11 +39,12 @@ func (ps *PostService) CreatePost(post model.Post) (*model.Post, error) {
 	return createdPost, nil
 }
 
-func (ps *PostService) generateUniqueSlug(t string) (string, error) {
+// generateUniqueSlug ensures that the generated slug is unique in the database
+func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string, error) {
 	baseSlug := generateSlug(t)
 	slug := baseSlug
 
-	exists, err := ps.repo.ExistsBySlug(slug)
+	exists, err := ps.repo.ExistsBySlug(ctx, slug)
 	if err != nil {
 		return "", fmt.Errorf("failed to check slug existence: %w", err)
 	}
@@ -51,7 +56,7 @@ func (ps *PostService) generateUniqueSlug(t string) (string, error) {
 	for i := 1; ; i++ {
 		slug := fmt.Sprintf("%s-%d", baseSlug, i)
 
-		exists, err := ps.repo.ExistsBySlug(slug)
+		exists, err := ps.repo.ExistsBySlug(ctx, slug)
 		if err != nil {
 			return "", fmt.Errorf("failed to check slug existence: %w", err)
 		}
@@ -63,6 +68,7 @@ func (ps *PostService) generateUniqueSlug(t string) (string, error) {
 	return slug, nil
 }
 
+// generateSlug normalizes and sanitizes a string to create a URL-friendly slug
 func generateSlug(t string) string {
 	slug := removeAccents(t)
 	slug = strings.ToLower(slug)
@@ -74,6 +80,7 @@ func generateSlug(t string) string {
 	return slug
 }
 
+// removeAccents removes diacritical marks (accents) from a string
 func removeAccents(s string) string {
 	/*
 		1. Normalize the string to NFC (normalized form decomposed)

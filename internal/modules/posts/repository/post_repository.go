@@ -1,23 +1,25 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
 )
 
+// PostRepository handles database operations related to posts
 type PostRepository struct {
 	db *sql.DB
 }
 
-// NewPostRepository creates a new instance of PostRepository with the provided database connection.
+// NewPostRepository creates a new instance of PostRepository with the provided database connection
 func NewPostRepository(db *sql.DB) *PostRepository {
 	return &PostRepository{db: db}
 }
 
-// Create inserts a new post into the database and returns the created post.
-func (pr *PostRepository) Create(post model.Post) (*model.Post, error) {
+// Create inserts a new post into the database and returns the saved record
+func (pr *PostRepository) Create(ctx context.Context, post model.Post) (*model.Post, error) {
 	query := `
 		INSERT INTO posts 
 			(title, content, slug, author_id, image_id, published, published_at)
@@ -29,7 +31,8 @@ func (pr *PostRepository) Create(post model.Post) (*model.Post, error) {
 	`
 
 	var savedPost model.Post
-	err := pr.db.QueryRow(
+	err := pr.db.QueryRowContext(
+		ctx,
 		query,
 		post.Title,
 		post.Content,
@@ -57,11 +60,12 @@ func (pr *PostRepository) Create(post model.Post) (*model.Post, error) {
 	return &savedPost, nil
 }
 
-func (pr *PostRepository) ExistsBySlug(slug string) (bool, error) {
+// ExistsBySlug checks if a post with the given slug already exists
+func (pr *PostRepository) ExistsBySlug(ctx context.Context, slug string) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM posts WHERE slug = $1)`
 
-	if err := pr.db.QueryRow(query, slug).Scan(&exists); err != nil {
+	if err := pr.db.QueryRowContext(ctx, query, slug).Scan(&exists); err != nil {
 		return false, err
 	}
 

@@ -2,6 +2,15 @@ package dto
 
 import "time"
 
+// CreatePostRequest represents the data required to create a new post.
+type CreatePostRequest struct {
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	AuthorID  string `json:"author_id"`
+	ImageID   string `json:"image_id"`
+	Published bool   `json:"published"`
+}
+
 // PostResponse represents the data returned when creating or fetching a post.
 type PostResponse struct {
 	ID          string    `json:"id"`

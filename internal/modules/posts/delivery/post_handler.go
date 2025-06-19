@@ -12,15 +12,20 @@ import (
 	"github.com/google/uuid"
 )
 
+// PostHandler handles HTTP requests related to posts
 type PostHandler struct {
 	service service.PostService
 }
 
+// NewPostHandler creates a new PostHandler with the given service
 func NewPostHandler(service service.PostService) *PostHandler {
 	return &PostHandler{service: service}
 }
 
+// CreatePostHandler handles the creation of a new post via HTTP
 func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req dto.CreatePostRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -60,7 +65,7 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 		PublishedAt: publishedAt,
 	}
 
-	createdPost, err := ph.service.CreatePost(post)
+	createdPost, err := ph.service.CreatePost(ctx, post)
 	if err != nil {
 		http.Error(w, "Failed to create post", http.StatusInternalServerError)
 		return
