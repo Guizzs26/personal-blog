@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Guizzs26/personal-blog/internal/modules/posts/dto"
+	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/dto"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/service"
 	"github.com/google/uuid"
