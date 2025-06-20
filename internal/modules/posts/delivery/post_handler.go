@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/dto"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
@@ -65,21 +64,16 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	res := dto.PostResponse{
-		ID:        createdPost.ID.String(),
-		Title:     createdPost.Title,
-		Content:   createdPost.Content,
-		Slug:      createdPost.Slug,
-		AuthorID:  createdPost.AuthorID.String(),
-		ImageID:   createdPost.ImageID.String(),
-		Published: createdPost.Published,
-		PublishedAt: func() time.Time {
-			if createdPost.PublishedAt != nil {
-				return *createdPost.PublishedAt
-			}
-			return time.Time{}
-		}(),
-		CreatedAt: createdPost.CreatedAt,
-		UpdatedAt: createdPost.UpdatedAt,
+		ID:          createdPost.ID.String(),
+		Title:       createdPost.Title,
+		Content:     createdPost.Content,
+		Slug:        createdPost.Slug,
+		AuthorID:    createdPost.AuthorID.String(),
+		ImageID:     createdPost.ImageID.String(),
+		Published:   createdPost.Published,
+		PublishedAt: createdPost.PublishedAt,
+		CreatedAt:   createdPost.CreatedAt,
+		UpdatedAt:   createdPost.UpdatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

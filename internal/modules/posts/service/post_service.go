@@ -60,7 +60,7 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 	}
 
 	for i := 1; ; i++ {
-		slug := fmt.Sprintf("%s-%d", baseSlug, i)
+		slug = fmt.Sprintf("%s-%d", baseSlug, i)
 
 		exists, err := ps.repo.ExistsBySlug(ctx, slug)
 		if err != nil {
