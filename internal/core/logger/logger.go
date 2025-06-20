@@ -25,8 +25,8 @@ func SetupLogger() {
 }
 
 // parseLogLevel maps string values to slog.Leveler with a fallback to Info.
-func parseLogLevel(level string) slog.Leveler {
-	switch strings.ToLower(level) {
+func parseLogLevel(l string) slog.Leveler {
+	switch strings.ToLower(l) {
 	case "debug":
 		return slog.LevelDebug
 	case "info":
