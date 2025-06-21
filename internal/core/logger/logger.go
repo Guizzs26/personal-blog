@@ -24,7 +24,7 @@ func SetupLogger() {
 	slog.SetDefault(logger)
 }
 
-// parseLogLevel maps string values to slog.Leveler with a fallback to Info.
+// parseLogLevel maps string values to slog.Leveler with a fallback to Info
 func parseLogLevel(l string) slog.Leveler {
 	switch strings.ToLower(l) {
 	case "debug":
