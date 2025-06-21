@@ -30,10 +30,6 @@ func NewPostService(repo repository.PostRepository) *PostService {
 func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.Post, error) {
 	log := logger.GetLoggerFromContext(ctx)
 
-	log.Info("Creating new post",
-		slog.String("title", post.Title),
-		slog.Bool("published", post.Published))
-
 	if post.Published && post.PublishedAt == nil {
 		now := time.Now()
 		post.PublishedAt = &now

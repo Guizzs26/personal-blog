@@ -35,16 +35,21 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			traceID = reqID
 		}
 
-		logger := slog.Default().With(
+		// Basic logger with only IDs for internal use
+		baseLogger := slog.Default().With(
 			slog.String("request_id", reqID),
 			slog.String("trace_id", traceID),
+		)
+
+		// Complete logger for request/response logs only
+		requestLogger := baseLogger.With(
 			slog.String("method", r.Method),
 			slog.String("path", r.URL.Path),
-			slog.String("remote_addr", r.RemoteAddr), // cannot be true ip
+			slog.String("remote_addr", r.RemoteAddr),
 			slog.String("user_agent", r.UserAgent()),
 		)
 
-		ctx := WithLogger(r.Context(), logger)
+		ctx := WithLogger(r.Context(), baseLogger)
 		ctx = WithRequestID(ctx, reqID)
 		ctx = WithTraceID(ctx, traceID)
 
@@ -54,17 +59,28 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			statusCode:     http.StatusOK,
 		}
 
-		GetLoggerFromContext(ctx).Info("Request started")
+		requestLogger.Info("Request started")
 
 		// Process request
 		next.ServeHTTP(rw, r.WithContext(ctx))
 
 		// Log the end of request with metrics
 		duration := time.Since(start)
-		GetLoggerFromContext(ctx).Info("Request completed",
-			slog.Int("status_code", rw.statusCode),
-			slog.Int64("response_size", rw.bytesWritten),
-			slog.Duration("duration", duration),
-		)
+
+		httpGroup := slog.Group("http",
+			slog.Int("status", rw.statusCode),
+			slog.Int64("size", rw.bytesWritten),
+			slog.Duration("duration", duration))
+
+		finalLogger := GetLoggerFromContext(ctx)
+
+		switch {
+		case rw.statusCode >= 500:
+			finalLogger.Error("Request failed", httpGroup)
+		case rw.statusCode >= 400:
+			finalLogger.Warn("Client error", httpGroup)
+		default:
+			finalLogger.Info("Request completed", httpGroup)
+		}
 	})
 }

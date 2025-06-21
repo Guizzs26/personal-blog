@@ -26,7 +26,7 @@ func SetupLogger() {
 	case "json":
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	default:
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		handler = slog.NewTextHandler(os.Stdout, opts)
 	}
 
 	logger := slog.New(handler)

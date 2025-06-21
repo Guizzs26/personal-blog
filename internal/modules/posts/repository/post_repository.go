@@ -34,11 +34,6 @@ func (pr *PostRepository) Create(ctx context.Context, post model.Post) (*model.P
 			published, published_at, created_at, updated_at
 	`
 
-	log.Debug("Executing insert post query",
-		slog.String("query", "INSERT INTO posts"),
-		slog.String("slug", post.Slug),
-		slog.String("author_id", post.AuthorID.String()))
-
 	var savedPost model.Post
 	err := pr.db.QueryRowContext(
 		ctx,
@@ -71,19 +66,12 @@ func (pr *PostRepository) Create(ctx context.Context, post model.Post) (*model.P
 		return nil, fmt.Errorf("failed to insert post: %w", err)
 	}
 
-	log.Info("Post inserted successfully into database",
-		slog.String("post_id", savedPost.ID.String()),
-		slog.String("slug", savedPost.Slug))
-
 	return &savedPost, nil
 }
 
 // ExistsBySlug checks if a post with the given slug already exists
 func (pr *PostRepository) ExistsBySlug(ctx context.Context, slug string) (bool, error) {
 	log := logger.GetLoggerFromContext(ctx)
-
-	log.Debug("Checking if slug exists",
-		slog.String("slug", slug))
 
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM posts WHERE slug = $1)`
