@@ -23,11 +23,10 @@ func WithLogger(ctx context.Context, l *slog.Logger) context.Context {
 // GetLoggerFromContext retrieves the logger from the context
 // If not found, it return slog.Default()
 func GetLoggerFromContext(ctx context.Context) *slog.Logger {
-	l, ok := ctx.Value(loggerKey).(*slog.Logger)
-	if !ok {
-		return slog.Default()
+	if l, ok := ctx.Value(loggerKey).(*slog.Logger); ok {
+		return l
 	}
-	return l
+	return slog.Default()
 }
 
 // WithRequestID stores the request ID in the context
@@ -38,11 +37,10 @@ func WithRequestID(ctx context.Context, id string) context.Context {
 // GetRequestIDFromContext retrieves the request ID from the context
 // Returns an empty string if not found
 func GetRequestIDFromContext(ctx context.Context) string {
-	rid, ok := ctx.Value(requestIDKey).(string)
-	if !ok {
-		return ""
+	if rid, ok := ctx.Value(requestIDKey).(string); ok {
+		return rid
 	}
-	return rid
+	return ""
 }
 
 // WithTraceID stores the trace ID in the context.
@@ -53,9 +51,8 @@ func WithTraceID(ctx context.Context, id string) context.Context {
 // GetTraceIDFromContext retrieves the trace ID from the context
 // Returns an empty string if not found
 func GetTraceIDFromContext(ctx context.Context) string {
-	tid, ok := ctx.Value(traceIDKey).(string)
-	if !ok {
-		return ""
+	if tid, ok := ctx.Value(traceIDKey).(string); ok {
+		return tid
 	}
-	return tid
+	return ""
 }

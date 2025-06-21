@@ -9,15 +9,24 @@ import (
 // SetupLogger configures the global slog logger based on environment variables
 func SetupLogger() {
 	level := parseLogLevel(os.Getenv("LOG_LEVEL"))
-	format := os.Getenv("LOG_FORMAT")
+	format := strings.ToLower(os.Getenv("LOG_FORMAT"))
+
+	if format == "" {
+		format = "json"
+	}
 
 	var handler slog.Handler
+	opts := &slog.HandlerOptions{
+		Level: level,
+	}
 
-	switch strings.ToLower(format) {
+	switch format {
 	case "text":
-		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+		handler = slog.NewTextHandler(os.Stdout, opts)
 	case "json":
-		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	default:
+		handler = slog.NewJSONHandler(os.Stdout, opts)
 	}
 
 	logger := slog.New(handler)
@@ -31,7 +40,7 @@ func parseLogLevel(l string) slog.Leveler {
 		return slog.LevelDebug
 	case "info":
 		return slog.LevelInfo
-	case "warn":
+	case "warn", "warning":
 		return slog.LevelWarn
 	case "error":
 		return slog.LevelError
