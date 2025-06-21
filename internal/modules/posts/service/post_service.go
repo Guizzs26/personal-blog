@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
 )
@@ -26,48 +28,96 @@ func NewPostService(repo repository.PostRepository) *PostService {
 
 // CreatePost creates a new post, generating a unique slug based on its title
 func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.Post, error) {
+	log := logger.GetLoggerFromContext(ctx)
+
+	log.Info("Creating new post",
+		slog.String("title", post.Title),
+		slog.Bool("published", post.Published))
+
 	if post.Published && post.PublishedAt == nil {
 		now := time.Now()
 		post.PublishedAt = &now
+
+		log.Debug("Setting published_at for published post",
+			slog.Time("published_at", now))
 	}
 
 	slug, err := ps.generateUniqueSlug(ctx, post.Title)
 	if err != nil {
+		log.Error("Failed to generate unique slug",
+			slog.String("title", post.Title),
+			slog.Any("error", err))
+
 		return nil, fmt.Errorf("service: failed to generate slug: %w", err)
 	}
+
+	log.Debug("Generated unique slug",
+		slog.String("slug", slug),
+		slog.String("title", post.Title))
 
 	post.Slug = slug
 	createdPost, err := ps.repo.Create(ctx, post)
 	if err != nil {
+		log.Error("Failed to create post in repository",
+			slog.String("slug", post.Slug),
+			slog.Any("repo_error", err))
+
 		return nil, fmt.Errorf("service: failed to create post: %w", err)
 	}
+
+	log.Info("Post created successfully in service",
+		slog.String("post_id", createdPost.ID.String()),
+		slog.String("slug", createdPost.Slug))
 
 	return createdPost, nil
 }
 
 // generateUniqueSlug ensures that the generated slug is unique in the database
 func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string, error) {
+	log := logger.GetLoggerFromContext(ctx)
+
 	baseSlug := generateSlug(t)
 	slug := baseSlug
 
+	log.Debug("Generated base slug",
+		slog.String("base_slug", baseSlug),
+		slog.String("title", t))
+
 	exists, err := ps.repo.ExistsBySlug(ctx, slug)
 	if err != nil {
+		log.Error("Failed to check slug existence",
+			slog.String("slug", slug),
+			slog.Any("error", err))
+
 		return "", fmt.Errorf("failed to check slug existence: %w", err)
 	}
 
 	if !exists {
+		log.Debug("Slug is unique", slog.String("slug", slug))
 		return slug, nil
 	}
+
+	log.Debug("Slug already exists, generating variations",
+		slog.String("base_slug", baseSlug))
 
 	for i := 1; ; i++ {
 		slug = fmt.Sprintf("%s-%d", baseSlug, i)
 
 		exists, err := ps.repo.ExistsBySlug(ctx, slug)
 		if err != nil {
+			log.Error("Failed to check slug existence in loop",
+				slog.String("slug", slug),
+				slog.Int("attempt", i),
+				slog.Any("error", err))
+
 			return "", fmt.Errorf("failed to check slug existence: %w", err)
 		}
 
 		if !exists {
+			log.Debug("Found unique slug after attempts",
+				slog.String("final_slug", slug),
+				slog.Int("attempts", i))
+
 			break
 		}
 	}
