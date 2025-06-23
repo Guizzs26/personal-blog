@@ -17,7 +17,8 @@ func SetupLogger() {
 
 	var handler slog.Handler
 	opts := &slog.HandlerOptions{
-		Level: level,
+		Level:     level,
+		AddSource: level == slog.LevelDebug,
 	}
 
 	switch format {

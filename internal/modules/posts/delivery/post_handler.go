@@ -26,7 +26,7 @@ func NewPostHandler(service service.PostService) *PostHandler {
 // CreatePostHandler handles the creation of a new post via HTTP
 func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := logger.GetLoggerFromContext(ctx)
+	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post_handler")
 
 	var req dto.CreatePostRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

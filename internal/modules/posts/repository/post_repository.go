@@ -22,7 +22,7 @@ func NewPostRepository(db *sql.DB) *PostRepository {
 
 // Create inserts a new post into the database and returns the saved record
 func (pr *PostRepository) Create(ctx context.Context, post model.Post) (*model.Post, error) {
-	log := logger.GetLoggerFromContext(ctx)
+	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post_repository")
 
 	query := `
 		INSERT INTO posts 
