@@ -28,7 +28,7 @@ func NewPostService(repo repository.PostRepository) *PostService {
 
 // CreatePost creates a new post, generating a unique slug based on its title
 func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.Post, error) {
-	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post")
+	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post_service")
 
 	if post.Published && post.PublishedAt == nil {
 		now := time.Now()
