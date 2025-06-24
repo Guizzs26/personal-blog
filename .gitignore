@@ -1,1 +1,79 @@
-*.env
+# ----------------------------------------
+# Core temporary and backup files
+# ----------------------------------------
+*.log                 # Log files
+*.tmp                 # Temporary files
+*.temp
+*.bak                 # Backup files
+*.swp                 # Vim swap files
+*.out                 # Output binaries
+*.exe                 # Windows executables
+*.test                # Go test binaries
+*.pid                 # Process ID files
+*.err                 # Error logs
+
+# ----------------------------------------
+# Go build artifacts
+# ----------------------------------------
+/bin/                 # Custom binary folder
+/dist/                # Distribution folder
+/build/               # Build output
+/coverage.out         # Coverage output
+*.coverprofile        # Coverage profiles
+*.test                # Test binaries
+
+# ----------------------------------------
+# Go modules and vendor
+# ----------------------------------------
+vendor/               # Vendor directory (if using `go mod vendor`)
+*.mod~                # Backup of go.mod
+
+# ----------------------------------------
+# Environment and configuration
+# ----------------------------------------
+.air.toml             # Air live reload config
+.env                  # Environment variables
+.env.local
+.env.*.local
+
+# ----------------------------------------
+# Logs folder
+# ----------------------------------------
+logs/
+log/
+*.log
+
+# ----------------------------------------
+# Editor-specific folders and files
+# ----------------------------------------
+.idea/                # JetBrains IDEs (GoLand, etc.)
+.vscode/              # Visual Studio Code
+*.code-workspace
+*.sublime*            # Sublime Text
+
+# ----------------------------------------
+# System and OS files
+# ----------------------------------------
+.DS_Store             # macOS system file
+.AppleDouble
+.LSOverride
+Thumbs.db             # Windows image cache
+Desktop.ini           # Windows desktop settings
+ehthumbs.db
+$RECYCLE.BIN/
+
+# ----------------------------------------
+# Editor temporary files
+# ----------------------------------------
+*~
+*.sw?                 # Vim swap files
+.session
+*.swo
+*.swn
+*.sublime-workspace
+*.sublime-project
+
+# ----------------------------------------
+# NFS and networked file systems
+# ----------------------------------------
+.nfs*                 # NFS temporary files
