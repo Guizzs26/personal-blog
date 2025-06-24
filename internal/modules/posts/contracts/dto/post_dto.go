@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
-	"github.com/Guizzs26/personal-blog/pkg/validatorx"
 	"github.com/google/uuid"
 )
 
@@ -19,10 +18,6 @@ type CreatePostRequest struct {
 }
 
 func (cpr *CreatePostRequest) ToModel() (model.Post, error) {
-	if err := validatorx.ValidateStruct(cpr); err != nil {
-		return model.Post{}, err
-	}
-
 	authorUUID, err := uuid.Parse(cpr.AuthorID)
 	if err != nil {
 		return model.Post{}, fmt.Errorf("failed to parse author_id to a valid uuid: %w", err)

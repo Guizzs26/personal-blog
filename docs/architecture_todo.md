@@ -10,17 +10,7 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
 * Ter implementações concretas como `PostgresPostRepository`, `InMemoryPostRepository`.
 * Services devem depender de interfaces, não de implementações concretas.
 
-## 2. Função Centralizada de Parsing e Validação
-
-* Criar uma função genérica:
-
-  ```go
-  func ParseAndValidate[T any](r *http.Request, dst *T) error
-  ```
-* Usa `json.Decoder` + `go-playground/validator`
-* Local: `pkg/httpx/json.go` ou `internal/utils/json.go`
-
-## 3. Conversão do DTO para Model (Normalize Early) ✔👍
+## 2. Conversão do DTO para Model (Normalize Early) ✔👍
 
 * Adicionar método ao DTO:
 
@@ -29,12 +19,12 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
   ```
 * Handler chama isso direto e envia para o service.
 
-## 4. Regra do `publishedAt` no Service ✔👍
+## 3. Regra do `publishedAt` no Service ✔👍
 
 * Handler apenas envia o booleano `Published`
 * Service define se deve preencher o `PublishedAt`
 
-## 5. Função para Gerar `PostResponse` ✔👍
+## 4. Função para Gerar `PostResponse` ✔👍
 
 * Criar:
 
@@ -43,14 +33,14 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
   ```
 * Centraliza conversão do model para resposta JSON.
 
-## 6. Funções Centralizadas para Respostas HTTP
+## 5. Funções Centralizadas para Respostas HTTP
 
 * `httpx.WriteJSON(w, status, data)`
 * `httpx.WriteError(w, status, message)`
-* `httpx.WriteValidationErrors(w, errs)`
+* `httpx.WriteValidationErrors(w, errs)` ✔👍
 * Local: `pkg/httpx/response.go`
 
-## 7. Função dedicada para parsing 
+## 6. Função dedicada para parsing 
 
 * Criar:
 
@@ -59,7 +49,7 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
   ```
 * Uso de generics + validação simplifica handlers.
 
-## 8. Uso de `context.Context` ✔👍
+## 7. Uso de `context.Context` ✔👍
 
 * Começar a propagar `ctx` da requisição para todas as camadas:
 

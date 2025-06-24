@@ -47,9 +47,7 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 		return nil, fmt.Errorf("service: failed to generate slug: %w", err)
 	}
 
-	log.Debug("Generated unique slug",
-		slog.String("slug", slug),
-		slog.String("title", post.Title))
+	log.Debug("Generated unique slug", slog.String("slug", slug))
 
 	post.Slug = slug
 	createdPost, err := ps.repo.Create(ctx, post)
@@ -75,9 +73,7 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 	baseSlug := generateSlug(t)
 	slug := baseSlug
 
-	log.Debug("Generated base slug",
-		slog.String("base_slug", baseSlug),
-		slog.String("title", t))
+	log.Debug("Generated base slug", slog.String("base_slug", baseSlug))
 
 	exists, err := ps.repo.ExistsBySlug(ctx, slug)
 	if err != nil {
@@ -89,13 +85,12 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 	}
 
 	if !exists {
-		log.Debug("Slug is unique", slog.String("slug", slug))
 		return slug, nil
 	}
 
 	log.Debug("Slug already exists, generating variations",
 		slog.String("base_slug", baseSlug))
-
+	// Slug already exists, try variations
 	for i := 1; ; i++ {
 		slug = fmt.Sprintf("%s-%d", baseSlug, i)
 
@@ -113,7 +108,6 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 			log.Debug("Found unique slug after attempts",
 				slog.String("final_slug", slug),
 				slog.Int("attempts", i))
-
 			break
 		}
 	}

@@ -28,39 +28,39 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post_handler")
 
-	var req dto.CreatePostRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Warn("Invalid request body", slog.Any("error", err))
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	log.Debug("Request payload received",
-		slog.String("title", req.Title),
-		slog.String("authod_id", req.AuthorID),
-		slog.Bool("published", req.Published),
-	)
-
-	post, err := req.ToModel()
+	req, err := httpx.Bind[dto.CreatePostRequest](r)
 	if err != nil {
+		log.Warn("Invalid request payoad", slog.Any("error", err))
 		if ve, ok := err.(validator.ValidationErrors); ok {
 			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
 			return
 		}
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	log.Info("Creating post",
+		slog.String("title", req.Title),
+		slog.String("authod_id", req.AuthorID),
+		slog.Bool("published", req.Published),
+	)
+	post, err := req.ToModel()
+	if err != nil {
+		log.Warn("Failed to convert request to model", slog.Any("error", err))
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
 	createdPost, err := ph.service.CreatePost(ctx, post)
 	if err != nil {
-		log.Error("Service error", slog.Any("error", err))
+		log.Error("service_error", slog.Any("error", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	res := dto.FromPostModel(*createdPost)
+	log.Info("Post created sucessfully", slog.String("slug", createdPost.Slug))
 
-	log.Info("Post created", slog.String("slug", createdPost.Slug))
+	res := dto.FromPostModel(*createdPost)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
