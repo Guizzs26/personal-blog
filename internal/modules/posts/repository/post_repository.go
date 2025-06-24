@@ -10,18 +10,18 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
 )
 
-// PostRepository handles database operations related to posts
-type PostRepository struct {
+// PostgresPostRepository handles database operations related to posts
+type PostgresPostRepository struct {
 	db *sql.DB
 }
 
-// NewPostRepository creates a new instance of PostRepository with the provided database connection
-func NewPostRepository(db *sql.DB) *PostRepository {
-	return &PostRepository{db: db}
+// NewPostgresPostRepository creates a new instance of PostRepository with the provided database connection
+func NewPostgresPostRepository(db *sql.DB) *PostgresPostRepository {
+	return &PostgresPostRepository{db: db}
 }
 
 // Create inserts a new post into the database and returns the saved record
-func (pr *PostRepository) Create(ctx context.Context, post model.Post) (*model.Post, error) {
+func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (*model.Post, error) {
 	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post_repository	")
 
 	query := `
@@ -70,7 +70,7 @@ func (pr *PostRepository) Create(ctx context.Context, post model.Post) (*model.P
 }
 
 // ExistsBySlug checks if a post with the given slug already exists
-func (pr *PostRepository) ExistsBySlug(ctx context.Context, slug string) (bool, error) {
+func (pr *PostgresPostRepository) ExistsBySlug(ctx context.Context, slug string) (bool, error) {
 	log := logger.GetLoggerFromContext(ctx)
 
 	var exists bool

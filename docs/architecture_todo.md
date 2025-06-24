@@ -33,10 +33,10 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
   ```
 * Centraliza conversão do model para resposta JSON.
 
-## 5. Funções Centralizadas para Respostas HTTP
+## 5. Funções Centralizadas para Respostas HTTP ✔👍
 
-* `httpx.WriteJSON(w, status, data)`
-* `httpx.WriteError(w, status, message)`
+* `httpx.WriteJSON(w, status, data)` ✔👍
+* `httpx.WriteError(w, status, message)` ✔👍
 * `httpx.WriteValidationErrors(w, errs)` ✔👍
 * Local: `pkg/httpx/response.go`
 

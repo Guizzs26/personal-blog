@@ -12,17 +12,17 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
+	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/interfaces"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
-	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
 )
 
 // PostService contains business logic for managing posts
 type PostService struct {
-	repo repository.PostRepository
+	repo interfaces.IPostRepository
 }
 
 // NewPostService creates a new PostService with the given repository
-func NewPostService(repo repository.PostRepository) *PostService {
+func NewPostService(repo interfaces.IPostRepository) *PostService {
 	return &PostService{repo: repo}
 }
 

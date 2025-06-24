@@ -14,8 +14,8 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.HandleFunc("GET /health", handlers.HealthCheckHandler)
 
 	// Posts module
-	postRepo := repository.NewPostRepository(pgConn)
-	postService := service.NewPostService(*postRepo)
+	postRepo := repository.NewPostgresPostRepository(pgConn)
+	postService := service.NewPostService(postRepo)
 	postHandler := delivery.NewPostHandler(*postService)
 
 	mux.HandleFunc("POST /posts", postHandler.CreatePostHandler)
