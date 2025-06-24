@@ -4,13 +4,10 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/dto"
-	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/service"
-	"github.com/google/uuid"
 )
 
 // PostHandler handles HTTP requests related to posts
@@ -41,58 +38,21 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 		slog.Bool("published", req.Published),
 	)
 
-	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Content) == "" || strings.TrimSpace(req.AuthorID) == "" || strings.TrimSpace(req.ImageID) == "" {
-		log.Warn("Required fields missing",
-			slog.Bool("title_empty", strings.TrimSpace(req.Title) == ""),
-			slog.Bool("content_empty", strings.TrimSpace(req.Content) == ""),
-			slog.Bool("author_id_empty", strings.TrimSpace(req.AuthorID) == ""),
-			slog.Bool("image_id_empty", strings.TrimSpace(req.ImageID) == ""))
-
-		http.Error(w, "title, content, author_id, and image_id are required", http.StatusBadRequest)
-		return
-	}
-
-	authorUUID, err := uuid.Parse(req.AuthorID)
+	post, err := req.ToModel()
 	if err != nil {
-		log.Warn("Invalid author_id", slog.String("author_id", req.AuthorID))
-		http.Error(w, "Invalid author_id", http.StatusBadRequest)
+		log.Warn("Invalid payload", slog.Any("error", err))
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	imageUUID, err := uuid.Parse(req.ImageID)
-	if err != nil {
-		log.Warn("Invalid image_id", slog.String("image_id", req.ImageID))
-		http.Error(w, "Invalid image_id", http.StatusBadRequest)
-		return
-	}
-
-	post := model.Post{
-		Title:     req.Title,
-		Content:   req.Content,
-		AuthorID:  authorUUID,
-		ImageID:   imageUUID,
-		Published: req.Published,
 	}
 
 	createdPost, err := ph.service.CreatePost(ctx, post)
 	if err != nil {
 		log.Error("Service error", slog.Any("error", err))
-		http.Error(w, "Failed to create post", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	res := dto.PostResponse{
-		ID:          createdPost.ID.String(),
-		Title:       createdPost.Title,
-		Content:     createdPost.Content,
-		Slug:        createdPost.Slug,
-		AuthorID:    createdPost.AuthorID.String(),
-		ImageID:     createdPost.ImageID.String(),
-		Published:   createdPost.Published,
-		PublishedAt: createdPost.PublishedAt,
-		CreatedAt:   createdPost.CreatedAt,
-		UpdatedAt:   createdPost.UpdatedAt,
-	}
+	res := dto.FromPostModel(*createdPost)
 
 	log.Info("Post created", slog.String("slug", createdPost.Slug))
 

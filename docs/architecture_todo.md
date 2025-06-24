@@ -20,7 +20,7 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
 * Usa `json.Decoder` + `go-playground/validator`
 * Local: `pkg/httpx/json.go` ou `internal/utils/json.go`
 
-## 3. Conversão do DTO para Model (Normalize Early)
+## 3. Conversão do DTO para Model (Normalize Early) ✔👍
 
 * Adicionar método ao DTO:
 
@@ -29,17 +29,17 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
   ```
 * Handler chama isso direto e envia para o service.
 
-## 4. Regra do `publishedAt` no Service
+## 4. Regra do `publishedAt` no Service ✔👍
 
 * Handler apenas envia o booleano `Published`
 * Service define se deve preencher o `PublishedAt`
 
-## 5. Função para Gerar `PostResponse`
+## 5. Função para Gerar `PostResponse` ✔👍
 
 * Criar:
 
   ```go
-  func FromPostModel(post model.Post) PostResponse
+  func FromPostModel(post model.Post) PostResponse 
   ```
 * Centraliza conversão do model para resposta JSON.
 
@@ -50,7 +50,7 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
 * `httpx.WriteValidationErrors(w, errs)`
 * Local: `pkg/httpx/response.go`
 
-## 7. Função dedicada para parsing
+## 7. Função dedicada para parsing 
 
 * Criar:
 
@@ -59,7 +59,7 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
   ```
 * Uso de generics + validação simplifica handlers.
 
-## 8. Uso de `context.Context`
+## 8. Uso de `context.Context` ✔👍
 
 * Começar a propagar `ctx` da requisição para todas as camadas:
 
