@@ -8,6 +8,9 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/dto"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/service"
+	"github.com/Guizzs26/personal-blog/pkg/httpx"
+	"github.com/Guizzs26/personal-blog/pkg/validatorx"
+	"github.com/go-playground/validator/v10"
 )
 
 // PostHandler handles HTTP requests related to posts
@@ -40,8 +43,11 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 
 	post, err := req.ToModel()
 	if err != nil {
-		log.Warn("Invalid payload", slog.Any("error", err))
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
+			return
+		}
+		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 

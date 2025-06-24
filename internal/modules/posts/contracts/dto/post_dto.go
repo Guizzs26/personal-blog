@@ -2,30 +2,25 @@ package dto
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
+	"github.com/Guizzs26/personal-blog/pkg/validatorx"
 	"github.com/google/uuid"
 )
 
 // CreatePostRequest represents the data required to create a new post.
 type CreatePostRequest struct {
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	AuthorID  string `json:"author_id"`
-	ImageID   string `json:"image_id"`
+	Title     string `json:"title" validate:"required"`
+	Content   string `json:"content" validate:"required"`
+	AuthorID  string `json:"author_id" validate:"required,uuid4"`
+	ImageID   string `json:"image_id" validate:"required,uuid4"`
 	Published bool   `json:"published"`
 }
 
 func (cpr *CreatePostRequest) ToModel() (model.Post, error) {
-	title := strings.TrimSpace(cpr.Title)
-	content := strings.TrimSpace(cpr.Content)
-	authorID := strings.TrimSpace(cpr.AuthorID)
-	imageID := strings.TrimSpace(cpr.ImageID)
-
-	if title == "" || content == "" || authorID == "" || imageID == "" {
-		return model.Post{}, fmt.Errorf("title, content, author_id, and image_id are required")
+	if err := validatorx.ValidateStruct(cpr); err != nil {
+		return model.Post{}, err
 	}
 
 	authorUUID, err := uuid.Parse(cpr.AuthorID)
