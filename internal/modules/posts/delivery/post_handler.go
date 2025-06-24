@@ -1,7 +1,6 @@
 package delivery
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -30,39 +29,37 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 
 	req, err := httpx.Bind[dto.CreatePostRequest](r)
 	if err != nil {
-		log.Warn("Invalid request payoad", slog.Any("error", err))
+		log.Warn("Invalid request payload", slog.Any("error", err))
 		if ve, ok := err.(validator.ValidationErrors); ok {
 			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
 			return
 		}
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid request body")
 		return
 	}
 
 	log.Info("Creating post",
 		slog.String("title", req.Title),
-		slog.String("authod_id", req.AuthorID),
+		slog.String("author_id", req.AuthorID),
 		slog.Bool("published", req.Published),
 	)
 	post, err := req.ToModel()
 	if err != nil {
 		log.Warn("Failed to convert request to model", slog.Any("error", err))
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid input data")
 		return
 	}
 
 	createdPost, err := ph.service.CreatePost(ctx, post)
 	if err != nil {
 		log.Error("service_error", slog.Any("error", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to create post")
 		return
 	}
 
-	log.Info("Post created sucessfully", slog.String("slug", createdPost.Slug))
+	log.Info("Post created successfully", slog.String("slug", createdPost.Slug))
 
 	res := dto.FromPostModel(*createdPost)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(res)
+	httpx.WriteJSON(w, http.StatusCreated, res)
 }

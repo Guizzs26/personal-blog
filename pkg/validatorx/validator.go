@@ -15,10 +15,6 @@ func init() {
 
 func ValidateStruct(input any) error {
 	err := validate.Struct(input)
-	if err == nil {
-		return nil
-	}
-
 	if _, ok := err.(validator.ValidationErrors); ok {
 		return err
 	}

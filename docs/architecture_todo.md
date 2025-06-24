@@ -40,7 +40,7 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
 * `httpx.WriteValidationErrors(w, errs)` ✔👍
 * Local: `pkg/httpx/response.go`
 
-## 6. Função dedicada para parsing 
+## 6. Função dedicada para parsing ✔👍
 
 * Criar:
 
