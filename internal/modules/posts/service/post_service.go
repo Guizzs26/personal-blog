@@ -30,12 +30,15 @@ func NewPostService(repo interfaces.IPostRepository) *PostService {
 func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.Post, error) {
 	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post_service")
 
-	if post.Published && post.PublishedAt == nil {
-		now := time.Now()
-		post.PublishedAt = &now
+	if post.Published {
+		if post.PublishedAt == nil {
+			now := time.Now()
+			post.PublishedAt = &now
 
-		log.Debug("Setting published_at for published post",
-			slog.Time("published_at", now))
+			log.Debug("Setting published_at for published post", slog.Time("published_at", now))
+		}
+	} else {
+		post.PublishedAt = nil // just a guarantee
 	}
 
 	slug, err := ps.generateUniqueSlug(ctx, post.Title)

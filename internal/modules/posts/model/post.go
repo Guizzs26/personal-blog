@@ -13,9 +13,9 @@ type Post struct {
 	Content     string     `json:"content" db:"content"`
 	Slug        string     `json:"slug" db:"slug"`
 	AuthorID    uuid.UUID  `json:"author_id" db:"author_id"`
-	ImageID     uuid.UUID  `json:"image_id" db:"image_id"`
+	ImageID     *uuid.UUID `json:"image_id" db:"image_id"`
 	Published   bool       `json:"published" db:"published"`
-	PublishedAt *time.Time `json:"published_at,omitempty" db:"published_at"`
+	PublishedAt *time.Time `json:"published_at" db:"published_at"`
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 }

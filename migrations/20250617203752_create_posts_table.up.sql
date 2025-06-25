@@ -3,7 +3,7 @@ CREATE TABLE posts (
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
-  image_id UUID NOT NULL,
+  image_id UUID,
   author_id UUID NOT NULL,
   published BOOLEAN NOT NULL DEFAULT FALSE,
   published_at TIMESTAMP,
