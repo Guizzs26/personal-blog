@@ -53,7 +53,11 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 
 	createdPost, err := ph.service.CreatePost(ctx, post)
 	if err != nil {
-		log.Error("service_error", slog.Any("error", err))
+		log.Error("Failed to create post via service",
+			slog.String("title", req.Title),
+			slog.String("author_id", req.AuthorID),
+			slog.Bool("published", req.Published),
+			slog.Any("error", err))
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to create post")
 		return
 	}

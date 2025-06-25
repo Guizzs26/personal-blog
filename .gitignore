@@ -32,7 +32,7 @@ vendor/               # Vendor directory (if using `go mod vendor`)
 # Environment and configuration
 # ----------------------------------------
 .air.toml             # Air live reload config
-.env                  # Environment variables
+*.env                 # Environment variables
 .env.local
 .env.*.local
 

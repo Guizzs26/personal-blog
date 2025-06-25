@@ -44,7 +44,7 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 			slog.String("title", post.Title),
 			slog.Any("error", err))
 
-		return nil, fmt.Errorf("service: failed to generate slug: %w", err)
+		return nil, fmt.Errorf("service: generate unique slug: %v", err)
 	}
 
 	log.Debug("Generated unique slug", slog.String("slug", slug))
@@ -56,7 +56,7 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 			slog.String("slug", post.Slug),
 			slog.Any("repo_error", err))
 
-		return nil, fmt.Errorf("service: failed to create post: %w", err)
+		return nil, fmt.Errorf("service: create post: %v", err)
 	}
 
 	log.Info("Post created successfully in service",
@@ -81,7 +81,7 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 			slog.String("slug", slug),
 			slog.Any("error", err))
 
-		return "", fmt.Errorf("failed to check slug existence: %w", err)
+		return "", fmt.Errorf("service: check if slug exists: %v", err)
 	}
 
 	if !exists {
@@ -101,7 +101,7 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 				slog.Int("attempt", i),
 				slog.Any("error", err))
 
-			return "", fmt.Errorf("failed to check slug existence: %w", err)
+			return "", fmt.Errorf("service: check slug existence in variation: %v", err)
 		}
 
 		if !exists {

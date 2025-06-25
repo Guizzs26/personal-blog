@@ -4,7 +4,7 @@ Este documento registra ideias futuras que serão implementadas gradualmente no 
 
 ---
 
-## 1. Inversão de Dependência via Interfaces
+## 1. Inversão de Dependência via Interfaces ✔👍
 
 * Criar interfaces como `PostRepository`, `PostStorage`, etc.
 * Ter implementações concretas como `PostgresPostRepository`, `InMemoryPostRepository`.

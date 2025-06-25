@@ -63,7 +63,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 			slog.String("author_id", post.AuthorID.String()),
 			slog.Any("db_error", err))
 
-		return nil, fmt.Errorf("failed to insert post: %w", err)
+		return nil, fmt.Errorf("repository: insert post: %v", err)
 	}
 
 	return &savedPost, nil
@@ -81,7 +81,7 @@ func (pr *PostgresPostRepository) ExistsBySlug(ctx context.Context, slug string)
 			slog.String("slug", slug),
 			slog.Any("db_error", err))
 
-		return false, err
+		return false, fmt.Errorf("repository: check slug existence: %v", err)
 	}
 
 	log.Debug("Slug existence check completed",
