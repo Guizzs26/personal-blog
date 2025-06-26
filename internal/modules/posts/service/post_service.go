@@ -14,6 +14,7 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/interfaces"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
+	"github.com/mdobak/go-xerrors"
 )
 
 // PostService contains business logic for managing posts
@@ -47,7 +48,7 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 			slog.String("title", post.Title),
 			slog.Any("error", err))
 
-		return nil, fmt.Errorf("service: generate unique slug: %v", err)
+		return nil, xerrors.WithWrapper(xerrors.New("service: generate unique slug"), err)
 	}
 
 	log.Debug("Generated unique slug", slog.String("slug", slug))
@@ -59,7 +60,7 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 			slog.String("slug", post.Slug),
 			slog.Any("repo_error", err))
 
-		return nil, fmt.Errorf("service: create post: %v", err)
+		return nil, xerrors.WithWrapper(xerrors.New("service: create post"), err)
 	}
 
 	log.Info("Post created successfully in service",
@@ -84,7 +85,7 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 			slog.String("slug", slug),
 			slog.Any("error", err))
 
-		return "", fmt.Errorf("service: check if slug exists: %v", err)
+		return "", xerrors.WithWrapper(xerrors.New("service: check if slug exists"), err)
 	}
 
 	if !exists {
@@ -104,7 +105,7 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 				slog.Int("attempt", i),
 				slog.Any("error", err))
 
-			return "", fmt.Errorf("service: check slug existence in variation: %v", err)
+			return "", xerrors.WithWrapper(xerrors.New(fmt.Sprintf("service: check slug existence in variation (attempt %d)", i)), err)
 		}
 
 		if !exists {

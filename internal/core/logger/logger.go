@@ -20,8 +20,9 @@ func SetupLogger() {
 	}
 
 	opts := &slog.HandlerOptions{
-		Level:     level,
-		AddSource: level == slog.LevelDebug,
+		Level:       level,
+		AddSource:   level == slog.LevelDebug,
+		ReplaceAttr: replaceAttr,
 	}
 
 	handler := newHandler(format, wrt, opts)
