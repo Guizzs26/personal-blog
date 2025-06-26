@@ -1,5 +1,3 @@
-tmp_dir = "tmp"
-
 [build]
   cmd = "go build -o bin/blog.exe ./cmd/main.go"
   bin = "bin/blog.exe"
