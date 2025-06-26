@@ -148,8 +148,8 @@ func TestCreatePost_SlugConflictGeneratesIncrementedSlug(t *testing.T) {
 	expectedPost.UpdatedAt = expectedPost.CreatedAt
 
 	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p model.Post) bool {
-		return p.Slug == expectedPost.Slug &&
-			p.Title == expectedPost.Title &&
+		return p.Title == expectedPost.Title &&
+			p.Slug == expectedPost.Slug &&
 			p.AuthorID == expectedPost.AuthorID
 	})).Return(expectedPost, nil)
 
@@ -165,6 +165,66 @@ func TestCreatePost_SlugConflictGeneratesIncrementedSlug(t *testing.T) {
 	assert.NotNil(t, createdPost)
 	assert.Equal(t, expectedPost.Slug, createdPost.Slug)
 	assert.Equal(t, expectedPost.Title, createdPost.Title)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestCreatePost_ErrorCheckingSlugExistence(t *testing.T) {
+	ctx := context.Background()
+	title := "Test Error Slug"
+	slug := "test-error-slug"
+	authorID := uuid.New()
+
+	mockRepo := new(mockPostRepository)
+	postService := NewPostService(mockRepo)
+
+	mockErr := assert.AnError
+
+	mockRepo.On("ExistsBySlug", mock.Anything, slug).Return(false, mockErr)
+
+	input := model.Post{
+		Title:    title,
+		Content:  "Some content",
+		AuthorID: authorID,
+	}
+
+	createdPost, err := postService.CreatePost(ctx, input)
+
+	assert.Nil(t, createdPost)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), mockErr.Error())
+
+	mockRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestCreatePost_ErrorOnCreate(t *testing.T) {
+	ctx := context.Background()
+	title := "Error on Create"
+	slug := "error-on-create"
+	authorID := uuid.New()
+
+	mockRepo := new(mockPostRepository)
+	postService := NewPostService(mockRepo)
+
+	mockRepo.On("ExistsBySlug", mock.Anything, slug).Return(false, nil)
+
+	mockErr := assert.AnError
+	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p model.Post) bool {
+		return p.Title == title && p.AuthorID == authorID
+	})).Return((*model.Post)(nil), mockErr)
+
+	input := model.Post{
+		Title:    title,
+		Content:  "Some content",
+		AuthorID: authorID,
+	}
+
+	createdPost, err := postService.CreatePost(ctx, input)
+
+	assert.Nil(t, createdPost)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), mockErr.Error())
 
 	mockRepo.AssertExpectations(t)
 }
