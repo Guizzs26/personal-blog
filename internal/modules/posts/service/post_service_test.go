@@ -228,3 +228,47 @@ func TestCreatePost_ErrorOnCreate(t *testing.T) {
 
 	mockRepo.AssertExpectations(t)
 }
+
+func TestCreatePost_MultipleSlugConflicts(t *testing.T) {
+	ctx := context.Background()
+	title := "Multiple slugs variations"
+	baseSlug := "multiple-slugs-variations"
+	authorID := uuid.New()
+
+	mockRepo := new(mockPostRepository)
+	postService := NewPostService(mockRepo)
+
+	mockRepo.On("ExistsBySlug", mock.Anything, baseSlug).Return(true, nil)
+	mockRepo.On("ExistsBySlug", mock.Anything, baseSlug+"-1").Return(true, nil)
+	mockRepo.On("ExistsBySlug", mock.Anything, baseSlug+"-2").Return(false, nil)
+
+	expectedSlug := baseSlug + "-2"
+	expectedPost := &model.Post{
+		ID:        uuid.New(),
+		Title:     title,
+		Content:   "Some content",
+		Slug:      expectedSlug,
+		AuthorID:  authorID,
+		Published: false,
+	}
+	expectedPost.CreatedAt = time.Now()
+	expectedPost.UpdatedAt = expectedPost.CreatedAt
+
+	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p model.Post) bool {
+		return p.Slug == expectedSlug
+	})).Return(expectedPost, nil)
+
+	input := model.Post{
+		Title:    title,
+		Content:  "## Content",
+		AuthorID: authorID,
+	}
+
+	createdPost, err := postService.CreatePost(ctx, input)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, createdPost)
+	assert.Equal(t, expectedSlug, createdPost.Slug)
+
+	mockRepo.AssertExpectations(t)
+}
