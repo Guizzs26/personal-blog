@@ -26,12 +26,12 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post_repository	")
 
 	query := `
-		INSERT INTO postss
-			(title, content, slug, author_id, image_id, published, published_at)
+		INSERT INTO posts
+			(title, content, description, slug, author_id, image_id, published, published_at)
 		VALUES 
 			($1, $2, $3, $4, $5, $6, $7)
 		RETURNING 
-			id, title, content, slug, author_id, image_id, 
+			id, title, content, description, slug, author_id, image_id, 
 			published, published_at, created_at, updated_at
 	`
 
@@ -41,6 +41,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 		query,
 		post.Title,
 		post.Content,
+		post.Description,
 		post.Slug,
 		post.AuthorID,
 		post.ImageID,
@@ -50,6 +51,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 		&savedPost.ID,
 		&savedPost.Title,
 		&savedPost.Content,
+		&savedPost.Description,
 		&savedPost.Slug,
 		&savedPost.AuthorID,
 		&savedPost.ImageID,

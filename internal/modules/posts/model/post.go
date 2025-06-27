@@ -11,6 +11,7 @@ type Post struct {
 	ID          uuid.UUID  `json:"id" db:"id"`
 	Title       string     `json:"title" db:"title"`
 	Content     string     `json:"content" db:"content"`
+	Description string     `json:"description" db:"description"`
 	Slug        string     `json:"slug" db:"slug"`
 	AuthorID    uuid.UUID  `json:"author_id" db:"author_id"`
 	ImageID     *uuid.UUID `json:"image_id" db:"image_id"`

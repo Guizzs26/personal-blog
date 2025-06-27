@@ -23,9 +23,9 @@ Vamos cobrir os principais comportamentos esperados:
 		 - São testadas em conjunto com a funcionalidade de criar o post porque
 		   são "intrínsicas" a ela. Não vale a pena testar isoladamente.
 
-❌ Erro ao verificar se slug existe
+❌ Erro ao verificar se slug existe 👍
 
-❌ Erro ao criar o post no repositório (erro do repo propagado corretamente)
+❌ Erro ao criar o post no repositório (erro do repo propagado corretamente) 👍
 
 ✅ Geração de slug alternativo quando o título já existe (criar um post com slug repetido) 👍
 	✅ Geração de post sem image_id
@@ -59,6 +59,7 @@ func TestCreatePost_Sucess(t *testing.T) {
 	// Input data - Arrange (A)
 	ctx := context.Background()
 	title := "Some Títle!"
+	description := "This is a great post about Go programming"
 	slug := "some-title"
 	authorID := uuid.New()
 	imageID := uuid.New()
@@ -71,13 +72,14 @@ func TestCreatePost_Sucess(t *testing.T) {
 
 	// Expected saved post
 	expectedPost := &model.Post{
-		ID:        uuid.New(),
-		Title:     title,
-		Content:   "# Markdown content",
-		Slug:      slug,
-		AuthorID:  authorID,
-		ImageID:   &imageID,
-		Published: true,
+		ID:          uuid.New(),
+		Title:       title,
+		Description: description,
+		Content:     "# Markdown content",
+		Slug:        slug,
+		AuthorID:    authorID,
+		ImageID:     &imageID,
+		Published:   true,
 	}
 	expectedPost.PublishedAt = func() *time.Time {
 		now := time.Now()
@@ -88,16 +90,18 @@ func TestCreatePost_Sucess(t *testing.T) {
 
 	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p model.Post) bool {
 		return p.Title == expectedPost.Title &&
+			p.Description == expectedPost.Description &&
 			p.Slug == expectedPost.Slug &&
 			p.AuthorID == expectedPost.AuthorID
 	})).Return(expectedPost, nil)
 
 	input := model.Post{
-		Title:     title,
-		Content:   "# Markdown Content",
-		AuthorID:  authorID,
-		ImageID:   &imageID,
-		Published: true,
+		Title:       title,
+		Description: description,
+		Content:     "# Markdown Content",
+		AuthorID:    authorID,
+		ImageID:     &imageID,
+		Published:   true,
 	}
 
 	createdPost, err := postService.CreatePost(ctx, input)
@@ -105,6 +109,7 @@ func TestCreatePost_Sucess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, createdPost)
 	assert.Equal(t, expectedPost.Title, createdPost.Title)
+	assert.Equal(t, expectedPost.Description, createdPost.Description)
 	assert.Equal(t, expectedPost.Slug, createdPost.Slug)
 	assert.Equal(t, expectedPost.AuthorID, createdPost.AuthorID)
 	assert.True(t, createdPost.Published)
@@ -124,6 +129,7 @@ already exists.
 func TestCreatePost_SlugConflictGeneratesIncrementedSlug(t *testing.T) {
 	ctx := context.Background()
 	title := "Go is awesome!"
+	description := "A comprehensive guide about Go programming language"
 	baseSlug := "go-is-awesome"
 	authorID := uuid.New()
 
@@ -137,26 +143,29 @@ func TestCreatePost_SlugConflictGeneratesIncrementedSlug(t *testing.T) {
 	mockRepo.On("ExistsBySlug", mock.Anything, baseSlug+"-1").Return(false, nil)
 
 	expectedPost := &model.Post{
-		ID:        uuid.New(),
-		Title:     title,
-		Content:   "## Markdown Content",
-		Slug:      baseSlug + "-1",
-		AuthorID:  authorID,
-		Published: false,
+		ID:          uuid.New(),
+		Title:       title,
+		Description: description,
+		Content:     "## Markdown Content",
+		Slug:        baseSlug + "-1",
+		AuthorID:    authorID,
+		Published:   false,
 	}
 	expectedPost.CreatedAt = time.Now()
 	expectedPost.UpdatedAt = expectedPost.CreatedAt
 
 	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p model.Post) bool {
 		return p.Title == expectedPost.Title &&
+			p.Description == expectedPost.Description &&
 			p.Slug == expectedPost.Slug &&
 			p.AuthorID == expectedPost.AuthorID
 	})).Return(expectedPost, nil)
 
 	input := model.Post{
-		Title:    title,
-		Content:  "## Markdown Content",
-		AuthorID: authorID,
+		Title:       title,
+		Description: description,
+		Content:     "## Markdown Content",
+		AuthorID:    authorID,
 	}
 
 	createdPost, err := postService.CreatePost(ctx, input)
@@ -165,6 +174,7 @@ func TestCreatePost_SlugConflictGeneratesIncrementedSlug(t *testing.T) {
 	assert.NotNil(t, createdPost)
 	assert.Equal(t, expectedPost.Slug, createdPost.Slug)
 	assert.Equal(t, expectedPost.Title, createdPost.Title)
+	assert.Equal(t, expectedPost.Description, createdPost.Description)
 
 	mockRepo.AssertExpectations(t)
 }
@@ -172,6 +182,7 @@ func TestCreatePost_SlugConflictGeneratesIncrementedSlug(t *testing.T) {
 func TestCreatePost_ErrorCheckingSlugExistence(t *testing.T) {
 	ctx := context.Background()
 	title := "Test Error Slug"
+	description := "Testing error scenarios"
 	slug := "test-error-slug"
 	authorID := uuid.New()
 
@@ -183,9 +194,10 @@ func TestCreatePost_ErrorCheckingSlugExistence(t *testing.T) {
 	mockRepo.On("ExistsBySlug", mock.Anything, slug).Return(false, mockErr)
 
 	input := model.Post{
-		Title:    title,
-		Content:  "Some content",
-		AuthorID: authorID,
+		Title:       title,
+		Description: description,
+		Content:     "Some content",
+		AuthorID:    authorID,
 	}
 
 	createdPost, err := postService.CreatePost(ctx, input)
@@ -201,6 +213,7 @@ func TestCreatePost_ErrorCheckingSlugExistence(t *testing.T) {
 func TestCreatePost_ErrorOnCreate(t *testing.T) {
 	ctx := context.Background()
 	title := "Error on Create"
+	description := "Testing repository create error"
 	slug := "error-on-create"
 	authorID := uuid.New()
 
@@ -211,13 +224,16 @@ func TestCreatePost_ErrorOnCreate(t *testing.T) {
 
 	mockErr := assert.AnError
 	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p model.Post) bool {
-		return p.Title == title && p.AuthorID == authorID
+		return p.Title == title &&
+			p.Description == description &&
+			p.AuthorID == authorID
 	})).Return((*model.Post)(nil), mockErr)
 
 	input := model.Post{
-		Title:    title,
-		Content:  "Some content",
-		AuthorID: authorID,
+		Title:       title,
+		Description: description,
+		Content:     "Some content",
+		AuthorID:    authorID,
 	}
 
 	createdPost, err := postService.CreatePost(ctx, input)
@@ -232,6 +248,7 @@ func TestCreatePost_ErrorOnCreate(t *testing.T) {
 func TestCreatePost_MultipleSlugConflicts(t *testing.T) {
 	ctx := context.Background()
 	title := "Multiple slugs variations"
+	description := "Testing multiple slug conflict resolution"
 	baseSlug := "multiple-slugs-variations"
 	authorID := uuid.New()
 
@@ -244,24 +261,26 @@ func TestCreatePost_MultipleSlugConflicts(t *testing.T) {
 
 	expectedSlug := baseSlug + "-2"
 	expectedPost := &model.Post{
-		ID:        uuid.New(),
-		Title:     title,
-		Content:   "Some content",
-		Slug:      expectedSlug,
-		AuthorID:  authorID,
-		Published: false,
+		ID:          uuid.New(),
+		Title:       title,
+		Description: description,
+		Content:     "Some content",
+		Slug:        expectedSlug,
+		AuthorID:    authorID,
+		Published:   false,
 	}
 	expectedPost.CreatedAt = time.Now()
 	expectedPost.UpdatedAt = expectedPost.CreatedAt
 
 	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(p model.Post) bool {
-		return p.Slug == expectedSlug
+		return p.Slug == expectedSlug && p.Description == description
 	})).Return(expectedPost, nil)
 
 	input := model.Post{
-		Title:    title,
-		Content:  "## Content",
-		AuthorID: authorID,
+		Title:       title,
+		Description: description,
+		Content:     "## Content",
+		AuthorID:    authorID,
 	}
 
 	createdPost, err := postService.CreatePost(ctx, input)
@@ -269,6 +288,7 @@ func TestCreatePost_MultipleSlugConflicts(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, createdPost)
 	assert.Equal(t, expectedSlug, createdPost.Slug)
+	assert.Equal(t, description, createdPost.Description)
 
 	mockRepo.AssertExpectations(t)
 }

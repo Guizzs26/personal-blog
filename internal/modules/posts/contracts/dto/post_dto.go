@@ -11,11 +11,12 @@ import (
 
 // CreatePostRequest represents the data required to create a new post.
 type CreatePostRequest struct {
-	Title     string `json:"title" validate:"required,min=2"`
-	Content   string `json:"content" validate:"required"`
-	AuthorID  string `json:"author_id" validate:"required,uuid4"`
-	ImageID   string `json:"image_id" validate:"omitempty,uuid4"`
-	Published bool   `json:"published"`
+	Title       string `json:"title" validate:"required,min=2"`
+	Content     string `json:"content" validate:"required"`
+	Description string `json:"description" validate:"required,min=2,max=400"`
+	AuthorID    string `json:"author_id" validate:"required,uuid4"`
+	ImageID     string `json:"image_id" validate:"omitempty,uuid4"`
+	Published   bool   `json:"published"`
 }
 
 func (cpr *CreatePostRequest) ToModel() (model.Post, error) {
@@ -34,11 +35,12 @@ func (cpr *CreatePostRequest) ToModel() (model.Post, error) {
 	}
 
 	return model.Post{
-		Title:     cpr.Title,
-		Content:   cpr.Content,
-		AuthorID:  authorUUID,
-		ImageID:   imageUUID,
-		Published: cpr.Published,
+		Title:       cpr.Title,
+		Content:     cpr.Content,
+		Description: cpr.Description,
+		AuthorID:    authorUUID,
+		ImageID:     imageUUID,
+		Published:   cpr.Published,
 	}, nil
 }
 
@@ -47,6 +49,7 @@ type PostResponse struct {
 	ID          string     `json:"id"`
 	Title       string     `json:"title"`
 	Content     string     `json:"content"`
+	Description string     `json:"description"`
 	Slug        string     `json:"slug"`
 	AuthorID    string     `json:"author_id"`
 	ImageID     *string    `json:"image_id,omitempty"`
@@ -58,11 +61,12 @@ type PostResponse struct {
 
 func FromPostModel(createdPost model.Post) PostResponse {
 	return PostResponse{
-		ID:       createdPost.ID.String(),
-		Title:    createdPost.Title,
-		Content:  createdPost.Content,
-		Slug:     createdPost.Slug,
-		AuthorID: createdPost.AuthorID.String(),
+		ID:          createdPost.ID.String(),
+		Title:       createdPost.Title,
+		Content:     createdPost.Content,
+		Description: createdPost.Description,
+		Slug:        createdPost.Slug,
+		AuthorID:    createdPost.AuthorID.String(),
 		ImageID: func() *string {
 			if createdPost.ImageID != nil {
 				str := createdPost.ImageID.String()
