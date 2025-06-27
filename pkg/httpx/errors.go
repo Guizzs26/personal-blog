@@ -28,8 +28,8 @@ type APIErrorDetail struct {
 // APIError is a structured error response
 type APIError struct {
 	Error struct {
-		Code    ErrorCode        `json:"code"`
 		Message string           `json:"message"`
+		Code    ErrorCode        `json:"code"`
 		Status  int              `json:"status"`
 		Details []APIErrorDetail `json:"details,omitempty"`
 	} `json:"error"`

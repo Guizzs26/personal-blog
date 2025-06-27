@@ -109,13 +109,26 @@ type PaginatedPostsResponse struct {
 }
 
 func NewPaginationInfo(page, pageSize, totalCount int) PaginationInfo {
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	if totalCount < 0 {
+		totalCount = 0
+	}
+
+	totalPages := 1
+	if totalCount > 0 {
+		totalPages = (totalCount + pageSize - 1) / pageSize
+	}
+
+	// Validate if the requested page exists
+	if page > totalPages && totalPages > 0 {
+		page = totalPages
+	}
+
 	return PaginationInfo{
 		Page:        page,
 		PageSize:    pageSize,
 		TotalCount:  totalCount,
 		TotalPages:  totalPages,
-		HasNext:     page < totalPages,
+		HasNext:     page < totalPages && totalCount > 0,
 		HasPrevious: page > 1,
 	}
 }

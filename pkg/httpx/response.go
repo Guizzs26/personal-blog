@@ -13,8 +13,8 @@ func WriteJSON(w http.ResponseWriter, status int, data any) {
 
 func WriteError(w http.ResponseWriter, status int, code ErrorCode, message string, details ...APIErrorDetail) {
 	err := APIError{}
-	err.Error.Code = code
 	err.Error.Message = message
+	err.Error.Code = code
 	err.Error.Status = status
 
 	if len(details) > 0 {
@@ -26,8 +26,8 @@ func WriteError(w http.ResponseWriter, status int, code ErrorCode, message strin
 
 func WriteValidationErrors(w http.ResponseWriter, errors map[string]string) {
 	err := APIError{}
-	err.Error.Code = ErrorCodeUnprocessable
 	err.Error.Message = "Validation Failed"
+	err.Error.Code = ErrorCodeUnprocessable
 	err.Error.Status = http.StatusUnprocessableEntity
 
 	details := make([]APIErrorDetail, 0, len(errors))

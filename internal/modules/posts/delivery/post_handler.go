@@ -81,6 +81,12 @@ func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWrit
 	ctx := r.Context()
 	log := logger.GetLoggerFromContext(ctx).WithGroup("list_posts_handler")
 
+	allowedParams := []string{"page", "page_size"}
+	if err := validateAllowedQueryParams(r, allowedParams); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, err.Error())
+		return
+	}
+
 	input, err := parseListPostQueryParams(r)
 	if err != nil {
 		log.Warn("Invalid query parameters", slog.Any("error", err))
@@ -154,4 +160,31 @@ func parseListPostQueryParams(r *http.Request) (dto.PaginationParams, error) {
 		input.PageSize = ps
 	}
 	return input, nil
+}
+
+// validateAllowedQueryParams validates that all query parameters in the HTTP request
+// are present in the allowed parameters whitelist. This function implements a defensive
+// approach by rejecting any unknown parameters.
+// Complexity Analysis:
+//
+//	Time: O(n + m) where n = len(allowed), m = number of query params in request
+//	  - Set construction: O(n) - building the allowedSet map
+//	  - Validation loop: O(m) - checking each query parameter
+//	  - Map lookup: O(1) - constant time per parameter check
+//	Space: O(n) - storage for allowedSet map with n entries using zero-byte struct{}
+//
+// Security: Implements whitelist validation to prevent parameter pollution attacks
+func validateAllowedQueryParams(r *http.Request, allowed []string) error {
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, k := range allowed {
+		allowedSet[k] = struct{}{}
+	}
+
+	for key := range r.URL.Query() {
+		if _, ok := allowedSet[key]; !ok {
+			return fmt.Errorf("query parameter '%s' is not allowed", key)
+		}
+	}
+
+	return nil
 }
