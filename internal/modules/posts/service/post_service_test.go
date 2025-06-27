@@ -53,6 +53,11 @@ func (m *mockPostRepository) ListPublished(ctx context.Context, page, pageSize i
 	return args.Get(0).([]model.PostPreview), args.Error(1)
 }
 
+func (m *mockPostRepository) CountPublished(ctx context.Context) (int, error) {
+	args := m.Called(ctx)
+	return args.Int(0), args.Error(1)
+}
+
 /*
 We tested the creation of a valid post
 

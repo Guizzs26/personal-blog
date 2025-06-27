@@ -95,7 +95,6 @@ func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageS
 	log := logger.GetLoggerFromContext(ctx).WithGroup("list_published_repository")
 
 	offset := (page - 1) * pageSize
-
 	query := `
 		SELECT id, title, description, image_id, published_at
 		FROM posts
@@ -125,4 +124,22 @@ func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageS
 	log.Debug("Listing published posts", slog.Int("page", page), slog.Int("page_size", pageSize))
 
 	return posts, nil
+}
+
+func (pr *PostgresPostRepository) CountPublished(ctx context.Context) (int, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("count_published_repository")
+
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM posts
+		WHERE published = true
+	`
+
+	if err := pr.db.QueryRowContext(ctx, query).Scan(&count); err != nil {
+		return 0, xerrors.WithStackTrace(fmt.Errorf("repository: count published posts: %v", err), 0)
+	}
+
+	log.Debug("Counted published posts", slog.Int("count", count))
+	return count, nil
 }

@@ -14,6 +14,13 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+const (
+	DefaultPage        = 1
+	DefaultPageSize    = 10
+	MaxPageSize        = 25
+	MinPageAndPageSize = 1
+)
+
 // PostHandler handles HTTP requests related to posts
 type PostHandler struct {
 	service service.PostService
@@ -86,7 +93,7 @@ func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWrit
 		slog.Int("page_size", input.PageSize),
 	)
 
-	posts, err := ph.service.ListPublishedAndPaginatedPosts(ctx, input.Page, input.PageSize)
+	posts, totalCount, err := ph.service.ListPublishedAndPaginatedPosts(ctx, input.Page, input.PageSize)
 	if err != nil {
 		log.Error("Failed to list posts via service",
 			slog.Int("page", input.Page),
@@ -96,7 +103,9 @@ func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWrit
 		return
 	}
 
-	log.Info("Posts retrieved successfully", slog.Int("count", len(posts)))
+	log.Info("Posts retrieved successfully",
+		slog.Int("count", len(posts)),
+		slog.Int("total_count", totalCount))
 
 	previews := make([]dto.PostPreviewResponse, len(posts))
 	for i, post := range posts {
@@ -108,19 +117,19 @@ func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWrit
 			PublishedAt: post.PublishedAt,
 		}
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"posts": previews,
-		"pagination": map[string]int{
-			"page":      input.Page,
-			"page_size": input.PageSize,
-		},
-	})
+
+	res := dto.PaginatedPostsResponse{
+		Posts:      previews,
+		Pagination: dto.NewPaginationInfo(input.Page, input.PageSize, totalCount),
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
-func parseListPostQueryParams(r *http.Request) (dto.ListPostsInput, error) {
-	input := dto.ListPostsInput{
-		Page:     1,  // Default page
-		PageSize: 10, // Default page size
+func parseListPostQueryParams(r *http.Request) (dto.PaginationParams, error) {
+	input := dto.PaginationParams{
+		Page:     DefaultPage,     // Default page
+		PageSize: DefaultPageSize, // Default page size
 	}
 
 	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
@@ -128,7 +137,7 @@ func parseListPostQueryParams(r *http.Request) (dto.ListPostsInput, error) {
 		if err != nil {
 			return input, fmt.Errorf("invalid page parameter: must be a number")
 		}
-		if p < 1 {
+		if p < MinPageAndPageSize {
 			return input, fmt.Errorf("invalid page parameter: must be greater than 0")
 		}
 		input.Page = p
@@ -139,7 +148,7 @@ func parseListPostQueryParams(r *http.Request) (dto.ListPostsInput, error) {
 		if err != nil {
 			return input, fmt.Errorf("invalid page_size parameter: must be a number")
 		}
-		if ps < 1 || ps > 25 {
+		if ps < MinPageAndPageSize || ps > MaxPageSize {
 			return input, fmt.Errorf("invalid page_size parameter: must be between 1 and 25")
 		}
 		input.PageSize = ps

@@ -159,14 +159,37 @@ func removeAccents(s string) string {
 	return string(result)
 }
 
-func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page, pageSize int) ([]model.PostPreview, error) {
+func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page, pageSize int) ([]model.PostPreview, int, error) {
 	log := logger.GetLoggerFromContext(ctx).WithGroup("list_published_service")
 
-	posts, err := ps.repo.ListPublished(ctx, page, pageSize)
-	if err != nil {
-		log.Error("Failed to list published posts", slog.Any("error", err))
-		return nil, xerrors.WithWrapper(xerrors.New("service: list published posts"), err)
+	var posts []model.PostPreview
+	var totalCount int
+	var postsErr, countErr error
+
+	done := make(chan bool, 2)
+
+	go func() {
+		posts, postsErr = ps.repo.ListPublished(ctx, page, pageSize)
+		done <- true
+	}()
+
+	go func() {
+		totalCount, countErr = ps.repo.CountPublished(ctx)
+		done <- true
+	}()
+
+	<-done
+	<-done
+
+	if postsErr != nil {
+		log.Error("Failed to list published posts", slog.Any("error", postsErr))
+		return nil, 0, xerrors.WithWrapper(xerrors.New("service: list published posts"), postsErr)
 	}
 
-	return posts, nil
+	if countErr != nil {
+		log.Error("Failed to count published posts", slog.Any("error", countErr))
+		return nil, 0, xerrors.WithWrapper(xerrors.New("service: count published posts"), countErr)
+	}
+
+	return posts, totalCount, nil
 }

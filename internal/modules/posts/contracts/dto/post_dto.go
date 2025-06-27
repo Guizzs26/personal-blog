@@ -59,26 +59,40 @@ type PostResponse struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-func FromPostModel(createdPost model.Post) PostResponse {
+func FromPostModel(post model.Post) PostResponse {
 	return PostResponse{
-		ID:          createdPost.ID.String(),
-		Title:       createdPost.Title,
-		Content:     createdPost.Content,
-		Description: createdPost.Description,
-		Slug:        createdPost.Slug,
-		AuthorID:    createdPost.AuthorID.String(),
+		ID:          post.ID.String(),
+		Title:       post.Title,
+		Content:     post.Content,
+		Description: post.Description,
+		Slug:        post.Slug,
+		AuthorID:    post.AuthorID.String(),
 		ImageID: func() *string {
-			if createdPost.ImageID != nil {
-				str := createdPost.ImageID.String()
+			if post.ImageID != nil {
+				str := post.ImageID.String()
 				return &str
 			}
 			return nil
 		}(),
-		Published:   createdPost.Published,
-		PublishedAt: createdPost.PublishedAt,
-		CreatedAt:   createdPost.CreatedAt,
-		UpdatedAt:   createdPost.UpdatedAt,
+		Published:   post.Published,
+		PublishedAt: post.PublishedAt,
+		CreatedAt:   post.CreatedAt,
+		UpdatedAt:   post.UpdatedAt,
 	}
+}
+
+type PaginationParams struct {
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
+}
+
+type PaginationInfo struct {
+	Page        int  `json:"page"`
+	PageSize    int  `json:"page_size"`
+	TotalCount  int  `json:"total_count"`
+	TotalPages  int  `json:"total_pages"`
+	HasNext     bool `json:"has_next"`
+	HasPrevious bool `json:"has_previous"`
 }
 
 type PostPreviewResponse struct {
@@ -89,7 +103,19 @@ type PostPreviewResponse struct {
 	PublishedAt time.Time  `json:"published_at"`
 }
 
-type ListPostsInput struct {
-	Page     int `json:"page"`
-	PageSize int `json:"page_size"`
+type PaginatedPostsResponse struct {
+	Posts      []PostPreviewResponse `json:"posts"`
+	Pagination PaginationInfo        `json:"pagination"`
+}
+
+func NewPaginationInfo(page, pageSize, totalCount int) PaginationInfo {
+	totalPages := (totalCount + pageSize - 1) / pageSize
+	return PaginationInfo{
+		Page:        page,
+		PageSize:    pageSize,
+		TotalCount:  totalCount,
+		TotalPages:  totalPages,
+		HasNext:     page < totalPages,
+		HasPrevious: page > 1,
+	}
 }
