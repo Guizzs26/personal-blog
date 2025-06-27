@@ -20,3 +20,11 @@ type Post struct {
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 }
+
+type PostPreview struct {
+	ID          uuid.UUID  `json:"id" db:"id"`
+	Title       string     `json:"title" db:"title"`
+	Description string     `json:"description" db:"description"`
+	ImageID     *uuid.UUID `json:"image_id" db:"image_id"`
+	PublishedAt time.Time  `json:"published_at" db:"published_at"`
+}

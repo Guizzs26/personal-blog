@@ -29,7 +29,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 		INSERT INTO posts
 			(title, content, description, slug, author_id, image_id, published, published_at)
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7)
+			($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING 
 			id, title, content, description, slug, author_id, image_id, 
 			published, published_at, created_at, updated_at
@@ -73,7 +73,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 
 // ExistsBySlug checks if a post with the given slug already exists
 func (pr *PostgresPostRepository) ExistsBySlug(ctx context.Context, slug string) (bool, error) {
-	log := logger.GetLoggerFromContext(ctx)
+	log := logger.GetLoggerFromContext(ctx).WithGroup("exists_by_slug_repository")
 
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM posts WHERE slug = $1)`
@@ -87,4 +87,42 @@ func (pr *PostgresPostRepository) ExistsBySlug(ctx context.Context, slug string)
 		slog.Bool("exists", exists))
 
 	return exists, nil
+}
+
+// ListPublished returns a paginated list of published posts,
+// ordered by published_at descending. Only essential preview fields are fetched
+func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageSize int) ([]model.PostPreview, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("list_published_repository")
+
+	offset := (page - 1) * pageSize
+
+	query := `
+		SELECT id, title, description, image_id, published_at
+		FROM posts
+		WHERE published = true
+		ORDER BY published_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := pr.db.QueryContext(ctx, query, pageSize, offset)
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: list published posts: %v", err), 0)
+	}
+	defer rows.Close()
+
+	var posts []model.PostPreview
+	for rows.Next() {
+		var p model.PostPreview
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.ImageID, &p.PublishedAt); err != nil {
+			return nil, xerrors.WithStackTrace(fmt.Errorf("repository: scan post row: %v", err), 0)
+		}
+		posts = append(posts, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: iterate rows: %v", err), 0)
+	}
+
+	log.Debug("Listing published posts", slog.Int("page", page), slog.Int("page_size", pageSize))
+
+	return posts, nil
 }

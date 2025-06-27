@@ -48,6 +48,11 @@ func (m *mockPostRepository) Create(ctx context.Context, post model.Post) (*mode
 	return args.Get(0).(*model.Post), args.Error(1)
 }
 
+func (m *mockPostRepository) ListPublished(ctx context.Context, page, pageSize int) ([]model.PostPreview, error) {
+	args := m.Called(ctx, page, pageSize)
+	return args.Get(0).([]model.PostPreview), args.Error(1)
+}
+
 /*
 We tested the creation of a valid post
 

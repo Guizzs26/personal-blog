@@ -80,3 +80,16 @@ func FromPostModel(createdPost model.Post) PostResponse {
 		UpdatedAt:   createdPost.UpdatedAt,
 	}
 }
+
+type PostPreviewResponse struct {
+	ID          uuid.UUID  `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	ImageID     *uuid.UUID `json:"image_id,omitempty"`
+	PublishedAt time.Time  `json:"published_at"`
+}
+
+type ListPostsInput struct {
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
+}

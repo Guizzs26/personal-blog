@@ -9,4 +9,5 @@ import (
 type IPostRepository interface {
 	Create(ctx context.Context, post model.Post) (*model.Post, error)
 	ExistsBySlug(ctx context.Context, slug string) (bool, error)
+	ListPublished(ctx context.Context, page, pageSize int) ([]model.PostPreview, error)
 }

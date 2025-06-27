@@ -1,8 +1,10 @@
 package delivery
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/dto"
@@ -66,4 +68,81 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 
 	res := dto.FromPostModel(*createdPost)
 	httpx.WriteJSON(w, http.StatusCreated, res)
+}
+
+func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("list_posts_handler")
+
+	input, err := parseListPostQueryParams(r)
+	if err != nil {
+		log.Warn("Invalid query parameters", slog.Any("error", err))
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, err.Error())
+		return
+	}
+
+	log.Info("Listing posts",
+		slog.Int("page", input.Page),
+		slog.Int("page_size", input.PageSize),
+	)
+
+	posts, err := ph.service.ListPublishedAndPaginatedPosts(ctx, input.Page, input.PageSize)
+	if err != nil {
+		log.Error("Failed to list posts via service",
+			slog.Int("page", input.Page),
+			slog.Int("page_size", input.PageSize),
+			slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to retrieve posts")
+		return
+	}
+
+	log.Info("Posts retrieved successfully", slog.Int("count", len(posts)))
+
+	previews := make([]dto.PostPreviewResponse, len(posts))
+	for i, post := range posts {
+		previews[i] = dto.PostPreviewResponse{
+			ID:          post.ID,
+			Title:       post.Title,
+			Description: post.Description,
+			ImageID:     post.ImageID,
+			PublishedAt: post.PublishedAt,
+		}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"posts": previews,
+		"pagination": map[string]int{
+			"page":      input.Page,
+			"page_size": input.PageSize,
+		},
+	})
+}
+
+func parseListPostQueryParams(r *http.Request) (dto.ListPostsInput, error) {
+	input := dto.ListPostsInput{
+		Page:     1,  // Default page
+		PageSize: 10, // Default page size
+	}
+
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		p, err := strconv.Atoi(pageStr)
+		if err != nil {
+			return input, fmt.Errorf("invalid page parameter: must be a number")
+		}
+		if p < 1 {
+			return input, fmt.Errorf("invalid page parameter: must be greater than 0")
+		}
+		input.Page = p
+	}
+
+	if pageSizeStr := r.URL.Query().Get("page_size"); pageSizeStr != "" {
+		ps, err := strconv.Atoi(pageSizeStr)
+		if err != nil {
+			return input, fmt.Errorf("invalid page_size parameter: must be a number")
+		}
+		if ps < 1 || ps > 25 {
+			return input, fmt.Errorf("invalid page_size parameter: must be between 1 and 25")
+		}
+		input.PageSize = ps
+	}
+	return input, nil
 }

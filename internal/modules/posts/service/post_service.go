@@ -158,3 +158,15 @@ func removeAccents(s string) string {
 	}
 	return string(result)
 }
+
+func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page, pageSize int) ([]model.PostPreview, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("list_published_service")
+
+	posts, err := ps.repo.ListPublished(ctx, page, pageSize)
+	if err != nil {
+		log.Error("Failed to list published posts", slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("service: list published posts"), err)
+	}
+
+	return posts, nil
+}
