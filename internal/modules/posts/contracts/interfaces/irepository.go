@@ -11,4 +11,5 @@ type IPostRepository interface {
 	ExistsBySlug(ctx context.Context, slug string) (bool, error)
 	ListPublished(ctx context.Context, page, pageSize int) ([]model.PostPreview, error)
 	CountPublished(ctx context.Context) (int, error)
+	FindPublishedBySlug(ctx context.Context, slug string) (*model.Post, error)
 }

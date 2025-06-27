@@ -25,6 +25,7 @@ type PostPreview struct {
 	ID          uuid.UUID  `json:"id" db:"id"`
 	Title       string     `json:"title" db:"title"`
 	Description string     `json:"description" db:"description"`
+	Slug        string     `json:"slug" db :"slug"`
 	ImageID     *uuid.UUID `json:"image_id" db:"image_id"`
 	PublishedAt time.Time  `json:"published_at" db:"published_at"`
 }

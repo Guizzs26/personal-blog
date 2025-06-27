@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -119,6 +120,7 @@ func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWrit
 			ID:          post.ID,
 			Title:       post.Title,
 			Description: post.Description,
+			Slug:        post.Slug,
 			ImageID:     post.ImageID,
 			PublishedAt: post.PublishedAt,
 		}
@@ -187,4 +189,33 @@ func validateAllowedQueryParams(r *http.Request, allowed []string) error {
 	}
 
 	return nil
+}
+
+func (ph *PostHandler) GetPublishedPostBySlugHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("list_post_by_slug_handler")
+
+	slug := r.PathValue("slug")
+	if slug == "" {
+		log.Warn("invalid slug provided", slog.String("slug", slug))
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "slug route parameter cannot be empty")
+		return
+	}
+
+	post, err := ph.service.GetPublishedPostBySlug(ctx, slug)
+	if errors.Is(err, service.ErrPostNotFound) {
+		log.Info("post not found", slog.String("slug", slug))
+		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Post not found")
+		return
+	}
+
+	if err != nil {
+		log.Error("failed to get post by slug", slog.String("slug", slug), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal error")
+		return
+	}
+
+	res := dto.BuildPostDetailResponse(post)
+
+	httpx.WriteJSON(w, 200, res)
 }

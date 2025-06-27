@@ -20,4 +20,5 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 
 	mux.HandleFunc("POST /posts", postHandler.CreatePostHandler)
 	mux.HandleFunc("GET /posts", postHandler.ListPublishedAndPaginatedPostsHandler)
+	mux.HandleFunc("GET /posts/{slug}", postHandler.GetPublishedPostBySlugHandler)
 }

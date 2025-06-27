@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
 	"github.com/mdobak/go-xerrors"
 )
+
+var ErrResourceNotFound = errors.New("resource not found")
 
 // PostgresPostRepository handles database operations related to posts
 type PostgresPostRepository struct {
@@ -96,7 +99,7 @@ func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageS
 
 	offset := (page - 1) * pageSize
 	query := `
-		SELECT id, title, description, image_id, published_at
+		SELECT id, title, description, slug, image_id, published_at
 		FROM posts
 		WHERE published = true
 		ORDER BY published_at DESC
@@ -112,7 +115,7 @@ func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageS
 	var posts []model.PostPreview
 	for rows.Next() {
 		var p model.PostPreview
-		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.ImageID, &p.PublishedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.Slug, &p.ImageID, &p.PublishedAt); err != nil {
 			return nil, xerrors.WithStackTrace(fmt.Errorf("repository: scan post row: %v", err), 0)
 		}
 		posts = append(posts, p)
@@ -142,4 +145,40 @@ func (pr *PostgresPostRepository) CountPublished(ctx context.Context) (int, erro
 
 	log.Debug("Counted published posts", slog.Int("count", count))
 	return count, nil
+}
+
+func (pr *PostgresPostRepository) FindPublishedBySlug(ctx context.Context, slug string) (*model.Post, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("count_published_repository")
+
+	query := `
+		SELECT id, title, content, image_id, published_at
+		FROM posts
+		WHERE slug= $1 AND published = true
+		LIMIT 1
+	`
+
+	log.Debug("executing query to find post by slug", "slug", slug)
+
+	var post model.Post
+	err := pr.db.QueryRowContext(ctx, query, slug).Scan(
+		&post.ID,
+		&post.Title,
+		&post.Content,
+		&post.ImageID,
+		&post.PublishedAt,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Debug("no post found with slug", "slug", slug)
+		return nil, ErrResourceNotFound
+	}
+	if err != nil {
+		log.Error("database error while finding post", "slug", slug, "error", err)
+		return nil, xerrors.WithStackTrace(
+			fmt.Errorf("failed to scan post row: %v", err), 0,
+		)
+	}
+
+	log.Debug("post found successfully", "slug", slug, "post_id", post.ID)
+	return &post, nil
 }

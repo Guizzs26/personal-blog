@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -14,8 +15,11 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/interfaces"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
+	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
 	"github.com/mdobak/go-xerrors"
 )
+
+var ErrPostNotFound = errors.New("post not found")
 
 // PostService contains business logic for managing posts
 type PostService struct {
@@ -192,4 +196,23 @@ func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page,
 	}
 
 	return posts, totalCount, nil
+}
+
+func (ps *PostService) GetPublishedPostBySlug(ctx context.Context, slug string) (*model.Post, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("get_published_post_by_slug_service")
+
+	log.Debug("retrieving post by slug", slog.String("slug", slug))
+
+	post, err := ps.repo.FindPublishedBySlug(ctx, slug)
+	if errors.Is(err, repository.ErrResourceNotFound) {
+		log.Info("post not found", slog.String("slug", slug))
+		return nil, ErrPostNotFound
+	}
+	if err != nil {
+		log.Error("failed to find post by slug", slog.String("slug", slug), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("service: find post by slug"), err)
+	}
+
+	log.Debug("post retrieved successfully", slog.String("slug", slug), slog.String("post_id", post.ID.String()))
+	return post, nil
 }

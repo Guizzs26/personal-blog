@@ -58,6 +58,11 @@ func (m *mockPostRepository) CountPublished(ctx context.Context) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
+func (m *mockPostRepository) FindPublishedBySlug(ctx context.Context, slug string) (*model.Post, error) {
+	args := m.Called(ctx, slug)
+	return args.Get(0).(*model.Post), args.Error(1)
+}
+
 /*
 We tested the creation of a valid post
 

@@ -60,6 +60,12 @@ type PostResponse struct {
 }
 
 func FromPostModel(post model.Post) PostResponse {
+	var imageID *string
+	if post.ImageID != nil {
+		id := post.ImageID.String()
+		imageID = &id
+	}
+
 	return PostResponse{
 		ID:          post.ID.String(),
 		Title:       post.Title,
@@ -67,13 +73,7 @@ func FromPostModel(post model.Post) PostResponse {
 		Description: post.Description,
 		Slug:        post.Slug,
 		AuthorID:    post.AuthorID.String(),
-		ImageID: func() *string {
-			if post.ImageID != nil {
-				str := post.ImageID.String()
-				return &str
-			}
-			return nil
-		}(),
+		ImageID:     imageID,
 		Published:   post.Published,
 		PublishedAt: post.PublishedAt,
 		CreatedAt:   post.CreatedAt,
@@ -99,6 +99,7 @@ type PostPreviewResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Title       string     `json:"title"`
 	Description string     `json:"description"`
+	Slug        string     `json:"slug"`
 	ImageID     *uuid.UUID `json:"image_id,omitempty"`
 	PublishedAt time.Time  `json:"published_at"`
 }
@@ -130,5 +131,23 @@ func NewPaginationInfo(page, pageSize, totalCount int) PaginationInfo {
 		TotalPages:  totalPages,
 		HasNext:     page < totalPages && totalCount > 0,
 		HasPrevious: page > 1,
+	}
+}
+
+type PostDetailResponse struct {
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Content     string     `json:"content"`
+	ImageID     *uuid.UUID `json:"image_id"`
+	PublishedAt time.Time  `json:"published_at"`
+}
+
+func BuildPostDetailResponse(post *model.Post) PostDetailResponse {
+	return PostDetailResponse{
+		ID:          post.ID.String(),
+		Title:       post.Title,
+		Content:     post.Content,
+		ImageID:     post.ImageID,
+		PublishedAt: *post.PublishedAt,
 	}
 }
