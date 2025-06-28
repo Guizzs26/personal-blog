@@ -147,7 +147,7 @@ func (pr *PostgresPostRepository) CountPublished(ctx context.Context) (int, erro
 	return count, nil
 }
 
-func (pr *PostgresPostRepository) FindPublishedBySlug(ctx context.Context, slug string) (*model.Post, error) {
+func (pr *PostgresPostRepository) FindPublishedBySlug(ctx context.Context, slug string) (*model.PostDetail, error) {
 	log := logger.GetLoggerFromContext(ctx).WithGroup("count_published_repository")
 
 	query := `
@@ -159,7 +159,7 @@ func (pr *PostgresPostRepository) FindPublishedBySlug(ctx context.Context, slug 
 
 	log.Debug("executing query to find post by slug", "slug", slug)
 
-	var post model.Post
+	var post model.PostDetail
 	err := pr.db.QueryRowContext(ctx, query, slug).Scan(
 		&post.ID,
 		&post.Title,

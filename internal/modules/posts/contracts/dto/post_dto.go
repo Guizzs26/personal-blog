@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreatePostRequest represents the data required to create a new post.
+// CreatePostRequest represents the payload used to create a new blog post
 type CreatePostRequest struct {
 	Title       string `json:"title" validate:"required,min=2"`
 	Content     string `json:"content" validate:"required"`
@@ -19,6 +19,7 @@ type CreatePostRequest struct {
 	Published   bool   `json:"published"`
 }
 
+// ToModel transforms a CreatePostRequest into a "domain" model.Post
 func (cpr *CreatePostRequest) ToModel() (model.Post, error) {
 	authorUUID, err := uuid.Parse(cpr.AuthorID)
 	if err != nil {
@@ -44,8 +45,9 @@ func (cpr *CreatePostRequest) ToModel() (model.Post, error) {
 	}, nil
 }
 
-// PostResponse represents the data returned when creating or fetching a post.
-type PostResponse struct {
+// PostResponse represents the complete data returned when fetching a post
+// or when create/update a post
+type PostFullResponse struct {
 	ID          string     `json:"id"`
 	Title       string     `json:"title"`
 	Content     string     `json:"content"`
@@ -59,14 +61,15 @@ type PostResponse struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-func FromPostModel(post model.Post) PostResponse {
+// ToPostFullResponse converts a "domain" model.Post into a PostFullResponse DTO
+func ToPostFullResponse(post model.Post) PostFullResponse {
 	var imageID *string
 	if post.ImageID != nil {
 		id := post.ImageID.String()
 		imageID = &id
 	}
 
-	return PostResponse{
+	return PostFullResponse{
 		ID:          post.ID.String(),
 		Title:       post.Title,
 		Content:     post.Content,
@@ -81,11 +84,13 @@ func FromPostModel(post model.Post) PostResponse {
 	}
 }
 
+// PaginationParams represents basic pagination input parameters for paginated endpoints
 type PaginationParams struct {
 	Page     int `json:"page"`
 	PageSize int `json:"page_size"`
 }
 
+// PaginationInfo contains metadata returned alongside paginated results
 type PaginationInfo struct {
 	Page        int  `json:"page"`
 	PageSize    int  `json:"page_size"`
@@ -95,20 +100,41 @@ type PaginationInfo struct {
 	HasPrevious bool `json:"has_previous"`
 }
 
+// PostPreviewResponse is a lightweight post representation used in list views
 type PostPreviewResponse struct {
-	ID          uuid.UUID  `json:"id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Slug        string     `json:"slug"`
-	ImageID     *uuid.UUID `json:"image_id,omitempty"`
-	PublishedAt time.Time  `json:"published_at"`
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Slug        string    `json:"slug"`
+	ImageID     *string   `json:"image_id,omitempty"`
+	PublishedAt time.Time `json:"published_at"`
 }
 
+// ToPostFullResponse converts a model.PostPreview into a PostPreviewResponse DTO
+func ToPostPreviewResponse(post model.PostPreview) PostPreviewResponse {
+	var imageID *string
+	if post.ImageID != nil {
+		id := post.ImageID.String()
+		imageID = &id
+	}
+
+	return PostPreviewResponse{
+		ID:          post.ID.String(),
+		Title:       post.Title,
+		Description: post.Description,
+		Slug:        post.Slug,
+		ImageID:     imageID,
+		PublishedAt: post.PublishedAt,
+	}
+}
+
+// PaginatedPostsResponse wraps a list of post previews with pagination metadata
 type PaginatedPostsResponse struct {
 	Posts      []PostPreviewResponse `json:"posts"`
 	Pagination PaginationInfo        `json:"pagination"`
 }
 
+// NewPaginationInfo builds pagination metadata given the current page and total count
 func NewPaginationInfo(page, pageSize, totalCount int) PaginationInfo {
 	if totalCount < 0 {
 		totalCount = 0
@@ -134,20 +160,29 @@ func NewPaginationInfo(page, pageSize, totalCount int) PaginationInfo {
 	}
 }
 
+// PostDetailResponse represents a detailed but minimal view of a single post.
+// Typically used for single post retrieval (GET /posts/{slug}).
 type PostDetailResponse struct {
-	ID          string     `json:"id"`
-	Title       string     `json:"title"`
-	Content     string     `json:"content"`
-	ImageID     *uuid.UUID `json:"image_id"`
-	PublishedAt time.Time  `json:"published_at"`
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Content     string    `json:"content"`
+	ImageID     *string   `json:"image_id"`
+	PublishedAt time.Time `json:"published_at"`
 }
 
-func BuildPostDetailResponse(post *model.Post) PostDetailResponse {
+// ToPostDetailResponse converts a model.PostDetail into a PostDetailResponse DTO
+func ToPostDetailResponse(post *model.PostDetail) PostDetailResponse {
+	var imageID *string
+	if post.ImageID != nil {
+		id := post.ImageID.String()
+		imageID = &id
+	}
+
 	return PostDetailResponse{
 		ID:          post.ID.String(),
 		Title:       post.Title,
 		Content:     post.Content,
-		ImageID:     post.ImageID,
-		PublishedAt: *post.PublishedAt,
+		ImageID:     imageID,
+		PublishedAt: post.PublishedAt,
 	}
 }

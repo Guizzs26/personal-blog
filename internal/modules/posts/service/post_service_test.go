@@ -58,9 +58,9 @@ func (m *mockPostRepository) CountPublished(ctx context.Context) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
-func (m *mockPostRepository) FindPublishedBySlug(ctx context.Context, slug string) (*model.Post, error) {
+func (m *mockPostRepository) FindPublishedBySlug(ctx context.Context, slug string) (*model.PostDetail, error) {
 	args := m.Called(ctx, slug)
-	return args.Get(0).(*model.Post), args.Error(1)
+	return args.Get(0).(*model.PostDetail), args.Error(1)
 }
 
 /*

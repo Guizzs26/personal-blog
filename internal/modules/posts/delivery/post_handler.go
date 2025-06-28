@@ -39,21 +39,14 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 
 	req, err := httpx.Bind[dto.CreatePostRequest](r)
 	if err != nil {
-		log.Warn("Invalid request payload", slog.Any("error", err))
 		if ve, ok := err.(validator.ValidationErrors); ok {
 			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
 			return
 		}
-
 		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid request body")
 		return
 	}
 
-	log.Info("Creating post",
-		slog.String("title", req.Title),
-		slog.String("author_id", req.AuthorID),
-		slog.Bool("published", req.Published),
-	)
 	post, err := req.ToModel()
 	if err != nil {
 		log.Warn("Failed to convert request to model", slog.Any("error", err))
@@ -63,22 +56,18 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 
 	createdPost, err := ph.service.CreatePost(ctx, post)
 	if err != nil {
-		log.Error("Failed to create post via service",
-			slog.String("title", req.Title),
-			slog.String("author_id", req.AuthorID),
-			slog.Bool("published", req.Published),
-			slog.Any("error", err))
+		log.Error("Failed to create post via service", slog.String("title", req.Title), slog.Any("error", err))
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to create post")
 		return
 	}
 
-	log.Info("Post created successfully", slog.String("slug", createdPost.Slug))
+	log.Info("Post created successfully", slog.String("id", createdPost.ID.String()), slog.String("slug", createdPost.Slug))
 
-	res := dto.FromPostModel(*createdPost)
+	res := dto.ToPostFullResponse(*createdPost)
 	httpx.WriteJSON(w, http.StatusCreated, res)
 }
 
-func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWriter, r *http.Request) {
+func (ph *PostHandler) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logger.GetLoggerFromContext(ctx).WithGroup("list_posts_handler")
 
@@ -90,40 +79,22 @@ func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWrit
 
 	input, err := parseListPostQueryParams(r)
 	if err != nil {
-		log.Warn("Invalid query parameters", slog.Any("error", err))
 		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, err.Error())
 		return
 	}
 
-	log.Info("Listing posts",
-		slog.Int("page", input.Page),
-		slog.Int("page_size", input.PageSize),
-	)
-
 	posts, totalCount, err := ph.service.ListPublishedAndPaginatedPosts(ctx, input.Page, input.PageSize)
 	if err != nil {
-		log.Error("Failed to list posts via service",
-			slog.Int("page", input.Page),
-			slog.Int("page_size", input.PageSize),
-			slog.Any("error", err))
+		log.Error("Failed to list posts via service", slog.Any("error", err))
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to retrieve posts")
 		return
 	}
 
-	log.Info("Posts retrieved successfully",
-		slog.Int("count", len(posts)),
-		slog.Int("total_count", totalCount))
+	log.Info("Posts retrieved successfully", slog.Int("count", len(posts)), slog.Int("total", totalCount))
 
 	previews := make([]dto.PostPreviewResponse, len(posts))
 	for i, post := range posts {
-		previews[i] = dto.PostPreviewResponse{
-			ID:          post.ID,
-			Title:       post.Title,
-			Description: post.Description,
-			Slug:        post.Slug,
-			ImageID:     post.ImageID,
-			PublishedAt: post.PublishedAt,
-		}
+		previews[i] = dto.ToPostPreviewResponse(post)
 	}
 
 	res := dto.PaginatedPostsResponse{
@@ -132,6 +103,34 @@ func (ph *PostHandler) ListPublishedAndPaginatedPostsHandler(w http.ResponseWrit
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+func (ph *PostHandler) GetPostBySlugHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("get_post_by_slug_handler")
+
+	slug := r.PathValue("slug")
+	if slug == "" {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "slug route parameter is required")
+		return
+	}
+
+	post, err := ph.service.GetPublishedPostBySlug(ctx, slug)
+	if errors.Is(err, service.ErrPostNotFound) {
+		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Post not found")
+		return
+	}
+
+	if err != nil {
+		log.Error("failed to get post by slug", slog.String("slug", slug), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal error")
+		return
+	}
+
+	log.Info("Post retrieved successfully", slog.String("slug", slug))
+
+	res := dto.ToPostDetailResponse(post)
+	httpx.WriteJSON(w, 200, res)
 }
 
 func parseListPostQueryParams(r *http.Request) (dto.PaginationParams, error) {
@@ -189,33 +188,4 @@ func validateAllowedQueryParams(r *http.Request, allowed []string) error {
 	}
 
 	return nil
-}
-
-func (ph *PostHandler) GetPublishedPostBySlugHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	log := logger.GetLoggerFromContext(ctx).WithGroup("list_post_by_slug_handler")
-
-	slug := r.PathValue("slug")
-	if slug == "" {
-		log.Warn("invalid slug provided", slog.String("slug", slug))
-		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "slug route parameter cannot be empty")
-		return
-	}
-
-	post, err := ph.service.GetPublishedPostBySlug(ctx, slug)
-	if errors.Is(err, service.ErrPostNotFound) {
-		log.Info("post not found", slog.String("slug", slug))
-		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Post not found")
-		return
-	}
-
-	if err != nil {
-		log.Error("failed to get post by slug", slog.String("slug", slug), slog.Any("error", err))
-		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal error")
-		return
-	}
-
-	res := dto.BuildPostDetailResponse(post)
-
-	httpx.WriteJSON(w, 200, res)
 }
