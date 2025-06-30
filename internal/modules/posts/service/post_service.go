@@ -16,6 +16,7 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/interfaces"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
+	"github.com/google/uuid"
 	"github.com/mdobak/go-xerrors"
 )
 
@@ -114,6 +115,38 @@ func (ps *PostService) GetPublishedPostBySlug(ctx context.Context, slug string) 
 	}
 
 	log.Info("Post retrieved successfully", slog.String("slug", slug))
+	return post, nil
+}
+
+func (ps *PostService) SetPostActive(ctx context.Context, id uuid.UUID, active bool) (*model.Post, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("set_post_active_service")
+
+	existingPost, err := ps.repo.FindByIDIgnoreActive(ctx, id)
+	if err != nil {
+		return nil, xerrors.WithWrapper(xerrors.New("service: set post active"), err)
+	}
+
+	if existingPost.Active == active {
+		status := "active"
+		if !active {
+			status = "inactive"
+		}
+
+		log.Info("Post already has the desired status", slog.String("slug", existingPost.Slug), slog.String("status", status))
+		return existingPost, nil
+	}
+
+	post, err := ps.repo.SetActive(ctx, id, active)
+	if err != nil {
+		return nil, xerrors.WithWrapper(xerrors.New("service: set post active status"), err)
+	}
+
+	action := "activated"
+	if !active {
+		action = "deactivated"
+	}
+
+	log.Info("Post status changed successfully", slog.String("slug", post.Slug), slog.String("action", action))
 	return post, nil
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
+	"github.com/google/uuid"
 	"github.com/mdobak/go-xerrors"
 )
 
@@ -35,7 +36,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 			($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING 
 			id, title, content, description, slug, author_id, image_id, 
-			published, published_at, created_at, updated_at
+			active, published, published_at, created_at, updated_at
 	`
 
 	var savedPost model.Post
@@ -58,6 +59,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 		&savedPost.Slug,
 		&savedPost.AuthorID,
 		&savedPost.ImageID,
+		&savedPost.Active,
 		&savedPost.Published,
 		&savedPost.PublishedAt,
 		&savedPost.CreatedAt,
@@ -79,7 +81,7 @@ func (pr *PostgresPostRepository) ExistsBySlug(ctx context.Context, slug string)
 	log := logger.GetLoggerFromContext(ctx).WithGroup("exists_by_slug_repository")
 
 	var exists bool
-	query := `SELECT EXISTS(SELECT 1 FROM posts WHERE slug = $1)`
+	query := `SELECT EXISTS(SELECT 1 FROM posts WHERE slug = $1 AND active = true)`
 
 	if err := pr.db.QueryRowContext(ctx, query, slug).Scan(&exists); err != nil {
 		return false, xerrors.WithStackTrace(fmt.Errorf("repository: check slug existence: %v", err), 0)
@@ -101,7 +103,7 @@ func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageS
 	query := `
 		SELECT id, title, description, slug, image_id, published_at
 		FROM posts
-		WHERE published = true
+		WHERE published = true AND active = true
 		ORDER BY published_at DESC
 		LIMIT $1 OFFSET $2
 	`
@@ -136,7 +138,7 @@ func (pr *PostgresPostRepository) CountPublished(ctx context.Context) (int, erro
 	query := `
 		SELECT COUNT(*)
 		FROM posts
-		WHERE published = true
+		WHERE published = true AND active = true
 	`
 
 	if err := pr.db.QueryRowContext(ctx, query).Scan(&count); err != nil {
@@ -153,11 +155,9 @@ func (pr *PostgresPostRepository) FindPublishedBySlug(ctx context.Context, slug 
 	query := `
 		SELECT id, title, content, image_id, published_at
 		FROM posts
-		WHERE slug= $1 AND published = true
+		WHERE slug= $1 AND published = true AND active = true
 		LIMIT 1
 	`
-
-	log.Debug("executing query to find post by slug", "slug", slug)
 
 	var post model.PostDetail
 	err := pr.db.QueryRowContext(ctx, query, slug).Scan(
@@ -167,18 +167,94 @@ func (pr *PostgresPostRepository) FindPublishedBySlug(ctx context.Context, slug 
 		&post.ImageID,
 		&post.PublishedAt,
 	)
-
 	if errors.Is(err, sql.ErrNoRows) {
-		log.Debug("no post found with slug", "slug", slug)
 		return nil, ErrResourceNotFound
 	}
 	if err != nil {
-		log.Error("database error while finding post", "slug", slug, "error", err)
-		return nil, xerrors.WithStackTrace(
-			fmt.Errorf("failed to scan post row: %v", err), 0,
-		)
+		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan post row: %v", err), 0)
 	}
 
-	log.Debug("post found successfully", "slug", slug, "post_id", post.ID)
+	log.Debug("Post found successfully", "slug", slug, "post_id", post.ID)
+	return &post, nil
+}
+
+func (r *PostgresPostRepository) FindByIDIgnoreActive(ctx context.Context, id uuid.UUID) (*model.Post, error) {
+	const query = `
+		SELECT id, title, content, description, slug, author_id, image_id, 
+					 published, published_at, active, created_at, updated_at
+		FROM posts
+		WHERE id = $1
+	`
+
+	row := r.db.QueryRowContext(ctx, query, id)
+
+	var post model.Post
+	err := row.Scan(
+		&post.ID,
+		&post.Title,
+		&post.Content,
+		&post.Description,
+		&post.Slug,
+		&post.AuthorID,
+		&post.ImageID,
+		&post.Published,
+		&post.PublishedAt,
+		&post.Active,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrResourceNotFound
+	}
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan post row: %v", err), 0)
+	}
+
+	return &post, nil
+}
+
+func (pr *PostgresPostRepository) SetActive(ctx context.Context, id uuid.UUID, active bool) (*model.Post, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("set_active_repository")
+
+	query := `
+		UPDATE posts
+		SET active = $1,
+		    updated_at = NOW()
+		WHERE id = $2
+		RETURNING id, title, content, description, slug, author_id, image_id, 
+		published, published_at, active, created_at, updated_at
+	`
+
+	row := pr.db.QueryRowContext(ctx, query, active, id)
+
+	var post model.Post
+	err := row.Scan(
+		&post.ID,
+		&post.Title,
+		&post.Content,
+		&post.Description,
+		&post.Slug,
+		&post.AuthorID,
+		&post.ImageID,
+		&post.Published,
+		&post.PublishedAt,
+		&post.Active,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrResourceNotFound
+	}
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan post row: %v", err), 0)
+	}
+
+	status := "deactivated"
+	if post.Active {
+		status = "activated"
+	}
+
+	log.Info("Post status changed", slog.String("post_id", post.ID.String()), slog.String("status", status))
 	return &post, nil
 }

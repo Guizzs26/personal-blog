@@ -13,6 +13,7 @@ import (
 	"github.com/Guizzs26/personal-blog/pkg/httpx"
 	"github.com/Guizzs26/personal-blog/pkg/validatorx"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 const (
@@ -131,6 +132,45 @@ func (ph *PostHandler) GetPostBySlugHandler(w http.ResponseWriter, r *http.Reque
 
 	res := dto.ToPostDetailResponse(post)
 	httpx.WriteJSON(w, 200, res)
+}
+
+func (ph *PostHandler) TogglePostActiveHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("toggle_post_active_handler")
+
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "post id is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "invalid post id format")
+		return
+	}
+
+	inputData, err := httpx.Bind[struct {
+		Active bool `json:"active"`
+	}](r)
+	if err != nil {
+		log.Error("failed to bind request body", slog.Any("error", err))
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "invalid request body")
+		return
+	}
+
+	post, err := ph.service.SetPostActive(ctx, id, inputData.Active)
+	if err != nil {
+		log.Error("failed to toggle post active",
+			slog.String("id", id.String()),
+			slog.Bool("active", inputData.Active),
+			slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "failed to update post status")
+		return
+	}
+
+	res := dto.ToPostFullResponse(*post)
+	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
 func parseListPostQueryParams(r *http.Request) (dto.PaginationParams, error) {

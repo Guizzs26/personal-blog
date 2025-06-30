@@ -55,6 +55,7 @@ type PostFullResponse struct {
 	Slug        string     `json:"slug"`
 	AuthorID    string     `json:"author_id"`
 	ImageID     *string    `json:"image_id,omitempty"`
+	Active      bool       `json:"active"`
 	Published   bool       `json:"published"`
 	PublishedAt *time.Time `json:"published_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
@@ -77,6 +78,7 @@ func ToPostFullResponse(post model.Post) PostFullResponse {
 		Slug:        post.Slug,
 		AuthorID:    post.AuthorID.String(),
 		ImageID:     imageID,
+		Active:      post.Active,
 		Published:   post.Published,
 		PublishedAt: post.PublishedAt,
 		CreatedAt:   post.CreatedAt,

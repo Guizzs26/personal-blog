@@ -63,6 +63,16 @@ func (m *mockPostRepository) FindPublishedBySlug(ctx context.Context, slug strin
 	return args.Get(0).(*model.PostDetail), args.Error(1)
 }
 
+func (m *mockPostRepository) FindByIDIgnoreActive(ctx context.Context, id uuid.UUID) (*model.Post, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*model.Post), args.Error(1)
+}
+
+func (m *mockPostRepository) SetActive(ctx context.Context, id uuid.UUID, active bool) (*model.Post, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*model.Post), args.Error(1)
+}
+
 /*
 We tested the creation of a valid post
 
