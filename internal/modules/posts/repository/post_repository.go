@@ -85,11 +85,30 @@ func (pr *PostgresPostRepository) ExistsBySlug(ctx context.Context, slug string)
 	query := `SELECT EXISTS(SELECT 1 FROM posts WHERE slug = $1 AND active = true)`
 
 	if err := pr.db.QueryRowContext(ctx, query, slug).Scan(&exists); err != nil {
-		return false, xerrors.WithStackTrace(fmt.Errorf("repository: check slug existence: %v", err), 0)
+		return false, xerrors.WithStackTrace(fmt.Errorf("repository: check slug existence by slug: %v", err), 0)
 	}
 
-	log.Debug("Slug existence check completed",
+	log.Debug("Check Existence of a post with the given slug completed",
 		slog.String("slug", slug),
+		slog.Bool("exists", exists))
+
+	return exists, nil
+}
+
+func (pr *PostgresPostRepository) ExistsByID(ctx context.Context, id uuid.UUID) (bool, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("exists_by_id_repository")
+
+	var exists bool
+	query := `
+		SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)
+	`
+
+	if err := pr.db.QueryRowContext(ctx, query, id).Scan(&exists); err != nil {
+		return false, xerrors.WithStackTrace(fmt.Errorf("repository: check slug existence by id: %v", err), 0)
+	}
+
+	log.Debug("Check Existence of a post with the given id completed",
+		slog.String("id", id.String()),
 		slog.Bool("exists", exists))
 
 	return exists, nil
@@ -204,7 +223,41 @@ func (r *PostgresPostRepository) FindByIDIgnoreActive(ctx context.Context, id uu
 		&post.CreatedAt,
 		&post.UpdatedAt,
 	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrResourceNotFound
+	}
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan post row: %v", err), 0)
+	}
 
+	return &post, nil
+}
+
+func (r *PostgresPostRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Post, error) {
+	const query = `
+		SELECT id, title, content, description, slug, author_id, image_id, 
+					 published, published_at, active, created_at, updated_at
+		FROM posts
+		WHERE id = $1 AND active = true
+	`
+
+	row := r.db.QueryRowContext(ctx, query, id)
+
+	var post model.Post
+	err := row.Scan(
+		&post.ID,
+		&post.Title,
+		&post.Content,
+		&post.Description,
+		&post.Slug,
+		&post.AuthorID,
+		&post.ImageID,
+		&post.Published,
+		&post.PublishedAt,
+		&post.Active,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrResourceNotFound
 	}
@@ -299,7 +352,6 @@ func (pr *PostgresPostRepository) UpdateByID(ctx context.Context, id uuid.UUID, 
 		&post.CreatedAt,
 		&post.UpdatedAt,
 	)
-
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrResourceNotFound
 	}
