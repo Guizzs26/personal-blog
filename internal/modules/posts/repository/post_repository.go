@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
@@ -256,5 +257,55 @@ func (pr *PostgresPostRepository) SetActive(ctx context.Context, id uuid.UUID, a
 	}
 
 	log.Info("Post status changed", slog.String("post_id", post.ID.String()), slog.String("status", status))
+	return &post, nil
+}
+
+func (pr *PostgresPostRepository) UpdateByID(ctx context.Context, id uuid.UUID, updates map[string]any) (*model.Post, error) {
+	setClauses := make([]string, 0, len(updates)+1)
+	args := make([]any, 0, len(updates)+1)
+	argPosition := 1
+
+	for field, value := range updates {
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", field, argPosition))
+		args = append(args, value)
+		argPosition++
+	}
+
+	setClauses = append(setClauses, "updated_at = NOW()")
+
+	query := fmt.Sprintf(`
+		UPDATE posts
+		SET %s
+		WHERE id = $%d AND active = true
+	RETURNING id, title, description, content, slug, active, published, published_at, 
+					  image_id, author_id, created_at, updated_at
+	`, strings.Join(setClauses, ", "), argPosition)
+
+	args = append(args, id)
+	row := pr.db.QueryRowContext(ctx, query, args...)
+
+	var post model.Post
+	err := row.Scan(
+		&post.ID,
+		&post.Title,
+		&post.Description,
+		&post.Content,
+		&post.Slug,
+		&post.Active,
+		&post.Published,
+		&post.PublishedAt,
+		&post.ImageID,
+		&post.AuthorID,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrResourceNotFound
+	}
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan updated post: %v", err), 0)
+	}
+
 	return &post, nil
 }

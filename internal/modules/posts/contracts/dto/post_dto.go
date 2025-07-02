@@ -54,16 +54,16 @@ type PostFullResponse struct {
 	Description string     `json:"description"`
 	Slug        string     `json:"slug"`
 	AuthorID    string     `json:"author_id"`
-	ImageID     *string    `json:"image_id,omitempty"`
+	ImageID     *string    `json:"image_id"`
 	Active      bool       `json:"active"`
 	Published   bool       `json:"published"`
-	PublishedAt *time.Time `json:"published_at,omitempty"`
+	PublishedAt *time.Time `json:"published_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // ToPostFullResponse converts a "domain" model.Post into a PostFullResponse DTO
-func ToPostFullResponse(post model.Post) PostFullResponse {
+func ToPostFullResponse(post *model.Post) PostFullResponse {
 	var imageID *string
 	if post.ImageID != nil {
 		id := post.ImageID.String()
@@ -84,6 +84,54 @@ func ToPostFullResponse(post model.Post) PostFullResponse {
 		CreatedAt:   post.CreatedAt,
 		UpdatedAt:   post.UpdatedAt,
 	}
+}
+
+// UpdatePostRequest represents the payload to update a blog post.
+// All fields are optional (pointers) to allow partial updates
+type UpdatePostRequest struct {
+	Title       *string `json:"title" validate:"omitempty,min=2"`
+	Content     *string `json:"content" validate:"omitempty"`
+	Description *string `json:"description" validate:"omitempty,min=2,max=400"`
+	AuthorID    *string `json:"author_id" validate:"omitempty,uuid4"`
+	ImageID     *string `json:"image_id" validate:"omitempty,uuid4"`
+	Published   *bool   `json:"published"`
+}
+
+func (upr *UpdatePostRequest) ToUpdateMap() (map[string]any, error) {
+	updates := map[string]any{}
+
+	if upr.Title != nil {
+		updates["title"] = *upr.Title
+	}
+
+	if upr.Content != nil {
+		updates["content"] = *upr.Content
+	}
+
+	if upr.Description != nil {
+		updates["description"] = *upr.Description
+	}
+
+	if upr.AuthorID != nil {
+		authorUUID, err := uuid.Parse(*upr.AuthorID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid author_id format: %v", err)
+		}
+		updates["author_id"] = authorUUID
+	}
+
+	if upr.ImageID != nil {
+		ImageUUID, err := uuid.Parse(*upr.ImageID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid author_id format: %v", err)
+		}
+		updates["image_id"] = ImageUUID
+	}
+
+	if upr.Published != nil {
+		updates["published"] = *upr.Published
+	}
+	return updates, nil
 }
 
 // PaginationParams represents basic pagination input parameters for paginated endpoints

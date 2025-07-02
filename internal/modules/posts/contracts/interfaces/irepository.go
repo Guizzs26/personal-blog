@@ -15,4 +15,5 @@ type IPostRepository interface {
 	FindPublishedBySlug(ctx context.Context, slug string) (*model.PostDetail, error)
 	FindByIDIgnoreActive(ctx context.Context, id uuid.UUID) (*model.Post, error)
 	SetActive(ctx context.Context, id uuid.UUID, active bool) (*model.Post, error)
+	UpdateByID(ctx context.Context, id uuid.UUID, updates map[string]any) (*model.Post, error)
 }

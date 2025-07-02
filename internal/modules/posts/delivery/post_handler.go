@@ -36,7 +36,7 @@ func NewPostHandler(service service.PostService) *PostHandler {
 // CreatePostHandler handles the creation of a new post via HTTP
 func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post_handler")
+	log := logger.GetLoggerFromContext(ctx).WithGroup("create_post")
 
 	req, err := httpx.Bind[dto.CreatePostRequest](r)
 	if err != nil {
@@ -57,20 +57,20 @@ func (ph *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request)
 
 	createdPost, err := ph.service.CreatePost(ctx, post)
 	if err != nil {
-		log.Error("Failed to create post via service", slog.String("title", req.Title), slog.Any("error", err))
+		log.Error("Failed to create post", slog.String("title", req.Title), slog.Any("error", err))
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to create post")
 		return
 	}
 
-	log.Info("Post created successfully", slog.String("id", createdPost.ID.String()), slog.String("slug", createdPost.Slug))
+	log.Info("Post created", slog.String("id", createdPost.ID.String()), slog.String("slug", createdPost.Slug))
 
-	res := dto.ToPostFullResponse(*createdPost)
+	res := dto.ToPostFullResponse(createdPost)
 	httpx.WriteJSON(w, http.StatusCreated, res)
 }
 
 func (ph *PostHandler) ListPostsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := logger.GetLoggerFromContext(ctx).WithGroup("list_posts_handler")
+	log := logger.GetLoggerFromContext(ctx).WithGroup("list_posts")
 
 	allowedParams := []string{"page", "page_size"}
 	if err := validateAllowedQueryParams(r, allowedParams); err != nil {
@@ -86,12 +86,10 @@ func (ph *PostHandler) ListPostsHandler(w http.ResponseWriter, r *http.Request) 
 
 	posts, totalCount, err := ph.service.ListPublishedAndPaginatedPosts(ctx, input.Page, input.PageSize)
 	if err != nil {
-		log.Error("Failed to list posts via service", slog.Any("error", err))
+		log.Error("Failed to list posts", slog.Any("error", err))
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to retrieve posts")
 		return
 	}
-
-	log.Info("Posts retrieved successfully", slog.Int("count", len(posts)), slog.Int("total", totalCount))
 
 	previews := make([]dto.PostPreviewResponse, len(posts))
 	for i, post := range posts {
@@ -108,7 +106,7 @@ func (ph *PostHandler) ListPostsHandler(w http.ResponseWriter, r *http.Request) 
 
 func (ph *PostHandler) GetPostBySlugHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := logger.GetLoggerFromContext(ctx).WithGroup("get_post_by_slug_handler")
+	log := logger.GetLoggerFromContext(ctx).WithGroup("get_post_by_slug")
 
 	slug := r.PathValue("slug")
 	if slug == "" {
@@ -121,14 +119,11 @@ func (ph *PostHandler) GetPostBySlugHandler(w http.ResponseWriter, r *http.Reque
 		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Post not found")
 		return
 	}
-
 	if err != nil {
-		log.Error("failed to get post by slug", slog.String("slug", slug), slog.Any("error", err))
+		log.Error("Failed to get post by slug", slog.String("slug", slug), slog.Any("error", err))
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal error")
 		return
 	}
-
-	log.Info("Post retrieved successfully", slog.String("slug", slug))
 
 	res := dto.ToPostDetailResponse(post)
 	httpx.WriteJSON(w, 200, res)
@@ -136,7 +131,7 @@ func (ph *PostHandler) GetPostBySlugHandler(w http.ResponseWriter, r *http.Reque
 
 func (ph *PostHandler) TogglePostActiveHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := logger.GetLoggerFromContext(ctx).WithGroup("toggle_post_active_handler")
+	log := logger.GetLoggerFromContext(ctx).WithGroup("toggle_post_active")
 
 	idStr := r.PathValue("id")
 	if idStr == "" {
@@ -154,22 +149,70 @@ func (ph *PostHandler) TogglePostActiveHandler(w http.ResponseWriter, r *http.Re
 		Active bool `json:"active"`
 	}](r)
 	if err != nil {
-		log.Error("failed to bind request body", slog.Any("error", err))
 		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "invalid request body")
 		return
 	}
 
 	post, err := ph.service.SetPostActive(ctx, id, inputData.Active)
 	if err != nil {
-		log.Error("failed to toggle post active",
-			slog.String("id", id.String()),
-			slog.Bool("active", inputData.Active),
-			slog.Any("error", err))
+		log.Error("Failed to toggle post active status", slog.String("id", id.String()), slog.Bool("active", inputData.Active), slog.Any("error", err))
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "failed to update post status")
 		return
 	}
 
-	res := dto.ToPostFullResponse(*post)
+	log.Info("Post status updated", slog.String("id", id.String()), slog.Bool("active", inputData.Active))
+
+	res := dto.ToPostFullResponse(post)
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+func (ph *PostHandler) UpdatePostByIDHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("update_post_by_id")
+
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "post id is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "invalid post id format")
+		return
+	}
+
+	req, err := httpx.Bind[dto.UpdatePostRequest](r)
+	if err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
+			return
+		}
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid request body")
+		return
+	}
+
+	updates, err := req.ToUpdateMap()
+	if err != nil {
+		log.Warn("Failed to convert request to update map", slog.Any("error", err))
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, err.Error())
+		return
+	}
+
+	post, err := ph.service.UpdatePostByID(ctx, id, updates)
+	if errors.Is(err, service.ErrPostNotFound) {
+		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Post not found")
+		return
+	}
+	if err != nil {
+		log.Error("Failed to update post", slog.String("id", id.String()), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal error")
+		return
+	}
+
+	log.Info("Post updated", slog.String("id", post.ID.String()))
+
+	res := dto.ToPostFullResponse(post)
 	httpx.WriteJSON(w, http.StatusOK, res)
 }
 

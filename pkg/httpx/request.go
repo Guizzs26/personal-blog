@@ -14,7 +14,7 @@ func Bind[T any](r *http.Request) (*T, error) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to parse the request body: %w", err)
+		return nil, fmt.Errorf("failed to parse the request body: %v", err)
 	}
 
 	if err := validatorx.ValidateStruct(&data); err != nil {

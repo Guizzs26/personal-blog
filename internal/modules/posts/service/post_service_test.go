@@ -73,6 +73,11 @@ func (m *mockPostRepository) SetActive(ctx context.Context, id uuid.UUID, active
 	return args.Get(0).(*model.Post), args.Error(1)
 }
 
+func (m *mockPostRepository) UpdateByID(ctx context.Context, id uuid.UUID, updates map[string]any) (*model.Post, error) {
+	args := m.Called(ctx, id, updates)
+	return args.Get(0).(*model.Post), args.Error(1)
+}
+
 /*
 We tested the creation of a valid post
 

@@ -43,8 +43,6 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 		if post.PublishedAt == nil {
 			now := time.Now()
 			post.PublishedAt = &now
-
-			log.Debug("Setting published_at for published post", slog.Time("published_at", now))
 		}
 	} else {
 		post.PublishedAt = nil // just a guarantee
@@ -53,22 +51,22 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 	slug, err := ps.generateUniqueSlug(ctx, post.Title)
 	if err != nil {
 		log.Error("Failed to generate unique slug", slog.String("title", post.Title), slog.Any("error", err))
-		return nil, xerrors.WithWrapper(xerrors.New("service: generate unique slug"), err)
+		return nil, xerrors.WithWrapper(xerrors.New("failed to generate unique slug"), err)
 	}
 
 	post.Slug = slug
 	createdPost, err := ps.repo.Create(ctx, post)
 	if err != nil {
 		log.Error("Failed to create post", slog.String("slug", post.Slug), slog.Any("error", err))
-		return nil, xerrors.WithWrapper(xerrors.New("service: create post"), err)
+		return nil, xerrors.WithWrapper(xerrors.New("failed to create post"), err)
 	}
 
-	log.Info("Post created successfully", slog.String("id", createdPost.ID.String()))
+	log.Info("Post created", slog.String("id", createdPost.ID.String()), slog.String("slug", createdPost.Slug))
 	return createdPost, nil
 }
 
 func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page, pageSize int) ([]model.PostPreview, int, error) {
-	log := logger.GetLoggerFromContext(ctx).WithGroup("list_published_service")
+	log := logger.GetLoggerFromContext(ctx).WithGroup("list_published_posts_service")
 
 	var posts []model.PostPreview
 	var totalCount int
@@ -91,63 +89,95 @@ func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page,
 
 	if postsErr != nil {
 		log.Error("Failed to list published posts", slog.Any("error", postsErr))
-		return nil, 0, xerrors.WithWrapper(xerrors.New("service: list published posts"), postsErr)
+		return nil, 0, xerrors.WithWrapper(xerrors.New("failed to list published posts"), postsErr)
 	}
 
 	if countErr != nil {
 		log.Error("Failed to count published posts", slog.Any("error", countErr))
-		return nil, 0, xerrors.WithWrapper(xerrors.New("service: count published posts"), countErr)
+		return nil, 0, xerrors.WithWrapper(xerrors.New("failed to count published posts"), countErr)
 	}
 
 	return posts, totalCount, nil
 }
 
 func (ps *PostService) GetPublishedPostBySlug(ctx context.Context, slug string) (*model.PostDetail, error) {
-	log := logger.GetLoggerFromContext(ctx).WithGroup("get_published_post_by_slug_service")
+	log := logger.GetLoggerFromContext(ctx).WithGroup("get_published_post_service")
 
 	post, err := ps.repo.FindPublishedBySlug(ctx, slug)
 	if errors.Is(err, repository.ErrResourceNotFound) {
 		return nil, ErrPostNotFound
 	}
 	if err != nil {
-		log.Error("failed to find post by slug", slog.String("slug", slug), slog.Any("error", err))
-		return nil, xerrors.WithWrapper(xerrors.New("service: find post by slug"), err)
+		log.Error("Failed to find post by slug", slog.String("slug", slug), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("failed to find post by slug"), err)
 	}
 
-	log.Info("Post retrieved successfully", slog.String("slug", slug))
 	return post, nil
 }
 
 func (ps *PostService) SetPostActive(ctx context.Context, id uuid.UUID, active bool) (*model.Post, error) {
-	log := logger.GetLoggerFromContext(ctx).WithGroup("set_post_active_service")
+	log := logger.GetLoggerFromContext(ctx).WithGroup("set_active_post_service")
 
 	existingPost, err := ps.repo.FindByIDIgnoreActive(ctx, id)
+	if errors.Is(err, repository.ErrResourceNotFound) {
+		return nil, ErrPostNotFound
+	}
 	if err != nil {
-		return nil, xerrors.WithWrapper(xerrors.New("service: set post active"), err)
+		log.Error("Failed to find post", slog.String("id", id.String()), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("failed to find post"), err)
 	}
 
 	if existingPost.Active == active {
-		status := "active"
-		if !active {
-			status = "inactive"
-		}
-
-		log.Info("Post already has the desired status", slog.String("slug", existingPost.Slug), slog.String("status", status))
 		return existingPost, nil
 	}
 
 	post, err := ps.repo.SetActive(ctx, id, active)
 	if err != nil {
-		return nil, xerrors.WithWrapper(xerrors.New("service: set post active status"), err)
+		log.Error("Failed to update post status", slog.String("id", id.String()), slog.Bool("active", active), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("failed to update post status"), err)
 	}
 
-	action := "activated"
-	if !active {
-		action = "deactivated"
-	}
-
-	log.Info("Post status changed successfully", slog.String("slug", post.Slug), slog.String("action", action))
+	log.Info("Post status updated", slog.String("id", post.ID.String()), slog.String("slug", post.Slug), slog.Bool("active", active))
 	return post, nil
+}
+
+func (ps *PostService) UpdatePostByID(ctx context.Context, id uuid.UUID, updates map[string]any) (*model.Post, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("post_service")
+
+	if newTitleRaw, ok := updates["title"]; ok {
+		if newTitle, ok := newTitleRaw.(string); ok && strings.TrimSpace(newTitle) != "" {
+			slug, err := ps.generateUniqueSlug(ctx, newTitle)
+			if err != nil {
+				return nil, xerrors.WithWrapper(xerrors.New("failed to generate slug"), err)
+			}
+			log.Debug("Generating new slug for updated title", slog.String("new_title", newTitle), slog.String("new_slug", slug))
+			updates["slug"] = slug
+		}
+	}
+
+	if publishedRaw, ok := updates["published"]; ok {
+		if published, ok := publishedRaw.(bool); ok {
+			if published {
+				log.Debug("Setting post as published", slog.Time("published_at", time.Now()))
+				updates["published_at"] = time.Now()
+			} else {
+				log.Debug("Setting post as unpublished")
+				updates["published_at"] = nil
+			}
+		}
+	}
+
+	updatedPost, err := ps.repo.UpdateByID(ctx, id, updates)
+	if errors.Is(err, repository.ErrResourceNotFound) {
+		return nil, ErrPostNotFound
+	}
+	if err != nil {
+		log.Error("Failed to update post", slog.String("id", id.String()), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("failed to update post"), err)
+	}
+
+	log.Info("Post updated", slog.String("id", updatedPost.ID.String()))
+	return updatedPost, nil
 }
 
 // generateUniqueSlug ensures that the generated slug is unique in the database
