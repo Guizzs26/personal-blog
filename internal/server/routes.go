@@ -23,4 +23,5 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.HandleFunc("GET /post/{slug}", postHandler.GetPostBySlugHandler)
 	mux.HandleFunc("PATCH /post/{id}/toggle-active", postHandler.TogglePostActiveHandler)
 	mux.HandleFunc("PATCH /post/{id}", postHandler.UpdatePostByIDHandler)
+	mux.HandleFunc("DELETE /post/{id}", postHandler.DeletePostByIDHandler)
 }

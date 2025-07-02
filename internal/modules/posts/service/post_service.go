@@ -22,6 +22,7 @@ import (
 
 var (
 	ErrPostNotFound = errors.New("post not found")
+	ErrPostIsActive = errors.New("post inactive")
 	slugRegex       = regexp.MustCompile(`[^\w-]+`)
 )
 
@@ -178,6 +179,37 @@ func (ps *PostService) UpdatePostByID(ctx context.Context, id uuid.UUID, updates
 
 	log.Info("Post updated", slog.String("id", updatedPost.ID.String()))
 	return updatedPost, nil
+}
+
+func (ps *PostService) DeletePostByID(ctx context.Context, id uuid.UUID) error {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("post_service")
+
+	isInactive, err := ps.repo.IsInactiveByID(ctx, id)
+	if errors.Is(err, repository.ErrResourceNotFound) {
+		log.Warn("Post not found for deletion", slog.String("id", id.String()))
+		return ErrPostNotFound
+	}
+	if err != nil {
+		log.Error("Failed to check if post is inactive", slog.String("id", id.String()), slog.Any("error", err))
+		return xerrors.WithWrapper(xerrors.New("service: check inactive by id"), err)
+	}
+	if !isInactive {
+		log.Warn("Cannot delete post because it is still active", slog.String("id", id.String()))
+		return ErrPostIsActive
+	}
+
+	err = ps.repo.DeleteByID(ctx, id)
+	if errors.Is(err, repository.ErrResourceNotFound) {
+		log.Warn("Post not found for deletion", slog.String("id", id.String()))
+		return ErrPostNotFound
+	}
+	if err != nil {
+		log.Error("Failed to delete post", slog.String("id", id.String()), slog.Any("error", err))
+		return xerrors.WithWrapper(xerrors.New("service: delete post by id"), err)
+	}
+
+	log.Debug("Post deleted successfully", slog.String("id", id.String()))
+	return nil
 }
 
 // generateUniqueSlug ensures that the generated slug is unique in the database

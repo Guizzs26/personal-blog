@@ -114,6 +114,26 @@ func (pr *PostgresPostRepository) ExistsByID(ctx context.Context, id uuid.UUID) 
 	return exists, nil
 }
 
+func (pr *PostgresPostRepository) IsInactiveByID(ctx context.Context, id uuid.UUID) (bool, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("is_inactive_by_id_repository")
+
+	query := `SELECT active FROM posts WHERE id = $1`
+
+	var active bool
+	err := pr.db.QueryRowContext(ctx, query, id).Scan(&active)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Debug("Post not found for inactivation check", slog.String("id", id.String()))
+		return false, ErrResourceNotFound
+	}
+	if err != nil {
+		return false, xerrors.WithStackTrace(fmt.Errorf("repository: failed to check post status: %v", err), 0)
+	}
+
+	isInactive := !active
+
+	return isInactive, nil
+}
+
 // ListPublished returns a paginated list of published posts,
 // ordered by published_at descending. Only essential preview fields are fetched
 func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageSize int) ([]model.PostPreview, error) {
@@ -360,4 +380,28 @@ func (pr *PostgresPostRepository) UpdateByID(ctx context.Context, id uuid.UUID, 
 	}
 
 	return &post, nil
+}
+
+func (pr *PostgresPostRepository) DeleteByID(ctx context.Context, id uuid.UUID) error {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("delete_post_by_id_repository")
+
+	query := `DELETE FROM posts WHERE id = $1 AND active = false`
+
+	r, err := pr.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return xerrors.WithStackTrace(fmt.Errorf("failed to execute delete query: %v", err), 0)
+	}
+
+	rowsAffected, err := r.RowsAffected()
+	if err != nil {
+		return xerrors.WithStackTrace(fmt.Errorf("repository: could not check rows affected: %v", err), 0)
+	}
+
+	if rowsAffected == 0 {
+		log.Debug("No post found to delete", slog.String("id", id.String()))
+		return ErrResourceNotFound
+	}
+
+	log.Debug("Post deleted permanently", slog.String("id", id.String()))
+	return nil
 }

@@ -16,4 +16,6 @@ type IPostRepository interface {
 	FindByIDIgnoreActive(ctx context.Context, id uuid.UUID) (*model.Post, error)
 	SetActive(ctx context.Context, id uuid.UUID, active bool) (*model.Post, error)
 	UpdateByID(ctx context.Context, id uuid.UUID, updates map[string]any) (*model.Post, error)
+	DeleteByID(ctx context.Context, id uuid.UUID) error
+	IsInactiveByID(ctx context.Context, id uuid.UUID) (bool, error)
 }

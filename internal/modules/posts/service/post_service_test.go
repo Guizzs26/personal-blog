@@ -78,6 +78,16 @@ func (m *mockPostRepository) UpdateByID(ctx context.Context, id uuid.UUID, updat
 	return args.Get(0).(*model.Post), args.Error(1)
 }
 
+func (m *mockPostRepository) DeleteByID(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *mockPostRepository) IsInactiveByID(ctx context.Context, id uuid.UUID) (bool, error) {
+	args := m.Called(ctx, id)
+	return args.Bool(0), args.Error(1)
+}
+
 /*
 We tested the creation of a valid post
 

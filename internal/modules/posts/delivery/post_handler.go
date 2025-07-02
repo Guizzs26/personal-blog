@@ -216,6 +216,40 @@ func (ph *PostHandler) UpdatePostByIDHandler(w http.ResponseWriter, r *http.Requ
 	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
+func (ph *PostHandler) DeletePostByIDHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("delete_post_by_id_handler")
+
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		httpx.WriteError(w, 400, httpx.ErrorCodeBadRequest, "post id is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "invalid post id format")
+		return
+	}
+
+	err = ph.service.DeletePostByID(ctx, id)
+	if errors.Is(err, service.ErrPostIsActive) {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Active post cannot be deleted")
+		return
+	}
+	if errors.Is(err, service.ErrPostNotFound) {
+		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Post not found")
+		return
+	}
+	if err != nil {
+		log.Error("Failed to delete post", slog.String("id", id.String()), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal error")
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusNoContent, nil)
+}
+
 func parseListPostQueryParams(r *http.Request) (dto.PaginationParams, error) {
 	input := dto.PaginationParams{
 		Page:     DefaultPage,     // Default page
