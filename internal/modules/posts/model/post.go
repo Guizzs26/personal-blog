@@ -13,6 +13,7 @@ type Post struct {
 	Content     string     `json:"content" db:"content"`
 	Description string     `json:"description" db:"description"`
 	Slug        string     `json:"slug" db:"slug"`
+	CategoryID  uuid.UUID  `json:"category_id" db:"category_id"`
 	AuthorID    uuid.UUID  `json:"author_id" db:"author_id"`
 	ImageID     *uuid.UUID `json:"image_id" db:"image_id"`
 	Active      bool       `json:"active" db:"active"`

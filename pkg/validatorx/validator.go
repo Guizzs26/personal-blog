@@ -32,7 +32,7 @@ func FormatValidationErrors(errs validator.ValidationErrors) map[string]string {
 		switch err.Tag() {
 		case "required":
 			msg = fmt.Sprintf("%s is required", field)
-		case "uuidv4":
+		case "uuid4":
 			msg = fmt.Sprintf("%s must be a valid UUIDV4", field)
 		case "min":
 			msg = fmt.Sprintf("%s must be at least %s characters", field, err.Param())

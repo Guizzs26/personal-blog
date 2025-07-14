@@ -22,5 +22,3 @@ Este é um projeto de blog pessoal desenvolvido com **Go (Golang)** com foco em 
 - [Go](https://golang.org/)
 - [PostgreSQL](https://www.postgresql.org/)
 - [Docker](https://www.docker.com/)
-
-

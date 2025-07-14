@@ -14,6 +14,7 @@ type CreatePostRequest struct {
 	Title       string `json:"title" validate:"required,min=2"`
 	Content     string `json:"content" validate:"required"`
 	Description string `json:"description" validate:"required,min=2,max=400"`
+	CategoryID  string `json:"category_id" validate:"required,uuid4"`
 	AuthorID    string `json:"author_id" validate:"required,uuid4"`
 	ImageID     string `json:"image_id" validate:"omitempty,uuid4"`
 	Published   bool   `json:"published"`
@@ -24,6 +25,11 @@ func (cpr *CreatePostRequest) ToModel() (model.Post, error) {
 	authorUUID, err := uuid.Parse(cpr.AuthorID)
 	if err != nil {
 		return model.Post{}, fmt.Errorf("failed to parse author_id to a valid uuid: %w", err)
+	}
+
+	categoryUUID, err := uuid.Parse(cpr.CategoryID)
+	if err != nil {
+		return model.Post{}, fmt.Errorf("failed to parse category_id to a valid uuid: %w", err)
 	}
 
 	var imageUUID *uuid.UUID
@@ -39,13 +45,14 @@ func (cpr *CreatePostRequest) ToModel() (model.Post, error) {
 		Title:       cpr.Title,
 		Content:     cpr.Content,
 		Description: cpr.Description,
+		CategoryID:  categoryUUID,
 		AuthorID:    authorUUID,
 		ImageID:     imageUUID,
 		Published:   cpr.Published,
 	}, nil
 }
 
-// PostResponse represents the complete data returned when fetching a post
+// PostFullResponse represents the complete data returned when fetching a post
 // or when create/update a post
 type PostFullResponse struct {
 	ID          string     `json:"id"`
@@ -53,6 +60,7 @@ type PostFullResponse struct {
 	Content     string     `json:"content"`
 	Description string     `json:"description"`
 	Slug        string     `json:"slug"`
+	CategoryID  string     `json:"category_id"`
 	AuthorID    string     `json:"author_id"`
 	ImageID     *string    `json:"image_id"`
 	Active      bool       `json:"active"`
@@ -76,6 +84,7 @@ func ToPostFullResponse(post *model.Post) PostFullResponse {
 		Content:     post.Content,
 		Description: post.Description,
 		Slug:        post.Slug,
+		CategoryID:  post.CategoryID.String(),
 		AuthorID:    post.AuthorID.String(),
 		ImageID:     imageID,
 		Active:      post.Active,

@@ -5,17 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
 	"strings"
 	"time"
-	"unicode"
-
-	"golang.org/x/text/unicode/norm"
 
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
+	categoryInterfaces "github.com/Guizzs26/personal-blog/internal/modules/categories/contracts/interfaces"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/interfaces"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/model"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
+	"github.com/Guizzs26/personal-blog/pkg/slug"
 	"github.com/google/uuid"
 	"github.com/mdobak/go-xerrors"
 )
@@ -23,17 +21,20 @@ import (
 var (
 	ErrPostNotFound = errors.New("post not found")
 	ErrPostIsActive = errors.New("post inactive")
-	slugRegex       = regexp.MustCompile(`[^\w-]+`)
 )
 
 // PostService contains business logic for managing posts
 type PostService struct {
-	repo interfaces.IPostRepository
+	repo         interfaces.IPostRepository
+	categoryRepo categoryInterfaces.ICategoryRepository
 }
 
 // NewPostService creates a new PostService with the given repository
-func NewPostService(repo interfaces.IPostRepository) *PostService {
-	return &PostService{repo: repo}
+func NewPostService(repo interfaces.IPostRepository, categoryRepo categoryInterfaces.ICategoryRepository) *PostService {
+	return &PostService{
+		repo:         repo,
+		categoryRepo: categoryRepo,
+	}
 }
 
 // CreatePost creates a new post, generating a unique slug based on its title
@@ -53,6 +54,18 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 	if err != nil {
 		log.Error("Failed to generate unique slug", slog.String("title", post.Title), slog.Any("error", err))
 		return nil, xerrors.WithWrapper(xerrors.New("failed to generate unique slug"), err)
+	}
+
+	existsCategory, err := ps.categoryRepo.ExistsByID(ctx, post.CategoryID)
+	if err != nil {
+		log.Error("Failed to validate category existence",
+			slog.String("category_id", post.CategoryID.String()), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("failed to validate category existence"), err)
+	}
+
+	if !existsCategory {
+		log.Warn("Category does not exist", slog.String("category_id", post.CategoryID.String()))
+		return nil, xerrors.New("informed category does not exist")
 	}
 
 	post.Slug = slug
@@ -216,7 +229,7 @@ func (ps *PostService) DeletePostByID(ctx context.Context, id uuid.UUID) error {
 func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string, error) {
 	log := logger.GetLoggerFromContext(ctx)
 
-	baseSlug := generateSlug(t)
+	baseSlug := slug.GenerateSlug(t)
 	slug := baseSlug
 
 	exists, err := ps.repo.ExistsBySlug(ctx, slug)
@@ -251,43 +264,4 @@ func (ps *PostService) generateUniqueSlug(ctx context.Context, t string) (string
 		}
 	}
 	return slug, nil
-}
-
-// generateSlug normalizes and sanitizes a string to create a URL-friendly slug
-func generateSlug(t string) string {
-	slug := removeAccents(t)
-	slug = strings.ToLower(slug)
-	slug = strings.ReplaceAll(slug, " ", "-")
-	slug = slugRegex.ReplaceAllString(slug, "")
-
-	return slug
-}
-
-// removeAccents removes diacritical marks (accents) from a string
-func removeAccents(s string) string {
-	/*
-		1. Normalize the string to NFC (normalized form decomposed)
-		2. Breaks accented letters into two runes: One for the letter and one for the accent
-		 	 - Example: "São João"
-			 - []rune{'S', 'a', '̃', 'o', ' ', 'J', 'o', '̃', 'a', 'o'}
-	*/
-	t := norm.NFD.String(s)
-
-	result := make([]rune, 0, len(t))
-	for _, r := range t {
-		/*
-			Mn -> Represents the unicode category "Mark, Nonspacing"
-			- Thats include accents, cedillas, umlauts, tildes and any character
-				that does not occupy it's own space - that is, combinable accents
-
-			Is() checks if that rune belongs to the given category.
-			If it's an accent (Mn), we ignore it with continue.
-			If it's a letter or number, we add it to the rune slice.
-		*/
-		if unicode.Is(unicode.Mn, r) {
-			continue
-		}
-		result = append(result, r)
-	}
-	return string(result)
 }

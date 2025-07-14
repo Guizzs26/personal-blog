@@ -32,11 +32,11 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 
 	query := `
 		INSERT INTO posts
-			(title, content, description, slug, author_id, image_id, published, published_at)
+			(title, content, description, slug, category_id, author_id, image_id, published, published_at)
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING 
-			id, title, content, description, slug, author_id, image_id, 
+			id, title, content, description, slug, category_id, author_id, image_id, 
 			active, published, published_at, created_at, updated_at
 	`
 
@@ -48,6 +48,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 		post.Content,
 		post.Description,
 		post.Slug,
+		post.CategoryID,
 		post.AuthorID,
 		post.ImageID,
 		post.Published,
@@ -58,6 +59,7 @@ func (pr *PostgresPostRepository) Create(ctx context.Context, post model.Post) (
 		&savedPost.Content,
 		&savedPost.Description,
 		&savedPost.Slug,
+		&savedPost.CategoryID,
 		&savedPost.AuthorID,
 		&savedPost.ImageID,
 		&savedPost.Active,
