@@ -34,4 +34,5 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.HandleFunc("DELETE /post/{id}", postHandler.DeletePostByIDHandler)
 
 	mux.HandleFunc("POST /category", categoryHandler.CreateCategoryHandler)
+	mux.HandleFunc("GET /category", categoryHandler.ListCategoriesHandler)
 }

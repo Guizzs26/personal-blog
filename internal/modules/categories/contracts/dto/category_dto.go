@@ -38,3 +38,51 @@ func ToCategoryFullResponse(category *model.Category) CategoryFullResponse {
 		UpdatedAt: category.UpdatedAt,
 	}
 }
+
+// PaginationParams represents basic pagination input parameters for paginated endpoints
+type PaginationParams struct {
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
+}
+
+// PaginationInfo contains metadata returned alongside paginated results
+type PaginationInfo struct {
+	Page        int  `json:"page"`
+	PageSize    int  `json:"page_size"`
+	TotalCount  int  `json:"total_count"`
+	TotalPages  int  `json:"total_pages"`
+	HasNext     bool `json:"has_next"`
+	HasPrevious bool `json:"has_previous"`
+}
+
+// PaginatedCategoriesResponse wraps a list of categories with pagination metadata
+type PaginatedCategoriesResponse struct {
+	Categories []CategoryFullResponse `json:"categories"`
+	Pagination PaginationInfo         `json:"pagination"`
+}
+
+// NewPaginationInfo builds pagination metadata given the current page and total count
+func NewPaginationInfo(page, pageSize, totalCount int) PaginationInfo {
+	if totalCount < 0 {
+		totalCount = 0
+	}
+
+	totalPages := 1
+	if totalCount > 0 {
+		totalPages = (totalCount + pageSize - 1) / pageSize
+	}
+
+	// Validate if the requested page exists
+	if page > totalPages && totalPages > 0 {
+		page = totalPages
+	}
+
+	return PaginationInfo{
+		Page:        page,
+		PageSize:    pageSize,
+		TotalCount:  totalCount,
+		TotalPages:  totalPages,
+		HasNext:     page < totalPages && totalCount > 0,
+		HasPrevious: page > 1,
+	}
+}

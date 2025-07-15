@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 
+	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/categories/model"
 	"github.com/google/uuid"
 	"github.com/mdobak/go-xerrors"
@@ -70,4 +72,57 @@ func (cr *PostgresCategoryRepository) ExistsByID(ctx context.Context, id uuid.UU
 	}
 
 	return exists, nil
+}
+
+func (cr *PostgresCategoryRepository) ListActives(ctx context.Context, page, pageSize int) (*[]model.Category, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("list_active_repository")
+
+	offset := (page - 1) * pageSize
+	query := `
+		SELECT id, name, slug, active, created_at, updated_at
+		FROM categories
+		WHERE active = true
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := cr.db.QueryContext(ctx, query, pageSize, offset)
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: list active categories: %v", err), 0)
+	}
+	defer rows.Close()
+
+	var categories []model.Category
+	for rows.Next() {
+		var c model.Category
+		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &c.Active, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, xerrors.WithStackTrace(fmt.Errorf("repository: scan category row: %v", err), 0)
+		}
+		categories = append(categories, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: iterate rows: %v", err), 0)
+	}
+
+	log.Debug("Listing active categories", slog.Int("page", page), slog.Int("page_size", pageSize))
+
+	return &categories, nil
+}
+
+func (cr *PostgresCategoryRepository) CountActives(ctx context.Context) (int, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("count_active_repository")
+
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM categories
+		WHERE active = true
+	`
+
+	if err := cr.db.QueryRowContext(ctx, query).Scan(&count); err != nil {
+		return 0, xerrors.WithStackTrace(fmt.Errorf("repository: count active categories: %v", err), 0)
+	}
+
+	log.Debug("Counted active categories", slog.Int("count", count))
+	return count, nil
 }
