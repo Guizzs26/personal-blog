@@ -13,4 +13,5 @@ type ICategoryRepository interface {
 	ExistsByID(ctx context.Context, id uuid.UUID) (bool, error)
 	ListActives(ctx context.Context, page, pageSize int) (*[]model.Category, error)
 	CountActives(ctx context.Context) (int, error)
+	UpdateByID(ctx context.Context, id uuid.UUID, name, slug string) (*model.Category, error)
 }

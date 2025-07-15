@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/mdobak/go-xerrors"
 )
+
+var ErrResourceNotFound = errors.New("resource not found")
 
 type PostgresCategoryRepository struct {
 	db *sql.DB
@@ -125,4 +128,31 @@ func (cr *PostgresCategoryRepository) CountActives(ctx context.Context) (int, er
 
 	log.Debug("Counted active categories", slog.Int("count", count))
 	return count, nil
+}
+
+func (cr *PostgresCategoryRepository) UpdateByID(ctx context.Context, id uuid.UUID, name, slug string) (*model.Category, error) {
+	query := `
+		UPDATE categories
+		SET name = $1, slug = $2
+		WHERE id = $3
+		RETURNING id, name, slug, active, created_at, updated_at
+	`
+
+	var category model.Category
+	err := cr.db.QueryRowContext(ctx, query, name, slug, id).Scan(
+		&category.ID,
+		&category.Name,
+		&category.Slug,
+		&category.Active,
+		&category.CreatedAt,
+		&category.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrResourceNotFound
+	}
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan updated category: %v", err), 0)
+	}
+
+	return &category, nil
 }

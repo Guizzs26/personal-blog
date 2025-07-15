@@ -39,6 +39,10 @@ func ToCategoryFullResponse(category *model.Category) CategoryFullResponse {
 	}
 }
 
+type UpdateCategoryRequest struct {
+	Name string `json:"name" validate:"required,min=2"`
+}
+
 // PaginationParams represents basic pagination input parameters for paginated endpoints
 type PaginationParams struct {
 	Page     int `json:"page"`

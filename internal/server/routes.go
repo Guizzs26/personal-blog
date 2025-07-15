@@ -35,4 +35,5 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 
 	mux.HandleFunc("POST /category", categoryHandler.CreateCategoryHandler)
 	mux.HandleFunc("GET /category", categoryHandler.ListCategoriesHandler)
+	mux.HandleFunc("PATCH /category/{id}", categoryHandler.UpdateCategoryByIDHandler)
 }

@@ -2,14 +2,22 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/categories/contracts/interfaces"
 	"github.com/Guizzs26/personal-blog/internal/modules/categories/model"
+	"github.com/Guizzs26/personal-blog/internal/modules/categories/repository"
 	"github.com/Guizzs26/personal-blog/pkg/slug"
+	"github.com/google/uuid"
 	"github.com/mdobak/go-xerrors"
+)
+
+var (
+	ErrCategoryNotFound = errors.New("category not found")
+	ErrCategoryIsActive = errors.New("category inactive")
 )
 
 type CategoryService struct {
@@ -73,6 +81,27 @@ func (cs *CategoryService) ListActiveAndPaginatedCategories(ctx context.Context,
 	}
 
 	return categories, totalCount, nil
+}
+
+func (cs *CategoryService) UpdateCategoryByID(ctx context.Context, id uuid.UUID, name string) (*model.Category, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("category_service")
+
+	slug, err := cs.generateUniqueSlug(ctx, name)
+	if err != nil {
+		return nil, xerrors.WithWrapper(xerrors.New("failed to generate slug"), err)
+	}
+
+	updatedCategory, err := cs.repo.UpdateByID(ctx, id, name, slug)
+	if errors.Is(err, repository.ErrResourceNotFound) {
+		return nil, ErrCategoryNotFound
+	}
+	if err != nil {
+		log.Error("Failed to update category", slog.String("id", id.String()), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("failed to update category"), err)
+	}
+
+	log.Info("Post updated", slog.String("id", updatedCategory.ID.String()))
+	return updatedCategory, nil
 }
 
 func (cs *CategoryService) generateUniqueSlug(ctx context.Context, n string) (string, error) {

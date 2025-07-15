@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/Guizzs26/personal-blog/pkg/httpx"
 	"github.com/Guizzs26/personal-blog/pkg/validatorx"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 const (
@@ -90,6 +92,49 @@ func (ch *CategoryHandler) ListCategoriesHandler(w http.ResponseWriter, r *http.
 		Pagination: dto.NewPaginationInfo(input.Page, input.PageSize, totalCount),
 	}
 
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+func (ch *CategoryHandler) UpdateCategoryByIDHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("update_post_by_id")
+
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "category id is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "invalid category id format")
+		return
+	}
+
+	req, err := httpx.Bind[dto.UpdateCategoryRequest](r)
+	if err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
+			return
+		}
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid request body")
+		return
+	}
+
+	category, err := ch.service.UpdateCategoryByID(ctx, id, req.Name)
+	if errors.Is(err, service.ErrCategoryNotFound) {
+		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Category not found")
+		return
+	}
+	if err != nil {
+		log.Error("Failed to update category", slog.String("id", id.String()), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal error")
+		return
+	}
+
+	log.Info("Category updated", slog.String("id", category.ID.String()))
+
+	res := dto.ToCategoryFullResponse(category)
 	httpx.WriteJSON(w, http.StatusOK, res)
 }
 

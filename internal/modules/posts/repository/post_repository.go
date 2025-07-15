@@ -352,7 +352,7 @@ func (pr *PostgresPostRepository) UpdateByID(ctx context.Context, id uuid.UUID, 
 		UPDATE posts
 		SET %s
 		WHERE id = $%d AND active = true
-	RETURNING id, title, description, content, slug, active, published, published_at, 
+		RETURNING id, title, description, content, slug, active, published, published_at, 
 					  image_id, author_id, created_at, updated_at
 	`, strings.Join(setClauses, ", "), argPosition)
 
