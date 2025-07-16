@@ -140,7 +140,6 @@ func (ps *PostService) SetPostActive(ctx context.Context, id uuid.UUID, active b
 		log.Error("Failed to find post", slog.String("id", id.String()), slog.Any("error", err))
 		return nil, xerrors.WithWrapper(xerrors.New("failed to find post"), err)
 	}
-
 	if existingPost.Active == active {
 		return existingPost, nil
 	}

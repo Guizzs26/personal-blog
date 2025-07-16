@@ -156,3 +156,43 @@ func (cr *PostgresCategoryRepository) UpdateByID(ctx context.Context, id uuid.UU
 
 	return &category, nil
 }
+
+func (cr *PostgresCategoryRepository) SetActive(ctx context.Context, id uuid.UUID, active bool) (*model.Category, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("set_active_repository")
+
+	query := `
+		UPDATE categories
+		SET active = $1,
+				updated_at = NOW()
+		WHERE id = $2
+		RETURNING id, name, slug, active, created_at, updated_at
+	`
+
+	row := cr.db.QueryRowContext(ctx, query, active, id)
+
+	var category model.Category
+	err := row.Scan(
+		&category.ID,
+		&category.Name,
+		&category.Slug,
+		&category.Active,
+		&category.CreatedAt,
+		&category.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrResourceNotFound
+	}
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan category row: %v", err), 0)
+	}
+
+	status := "deactivated"
+	if category.Active {
+		status = "activated"
+	}
+
+	log.Info("Category status changed",
+		slog.String("category_id", category.ID.String()),
+		slog.String("status", status))
+	return &category, nil
+}

@@ -49,35 +49,14 @@ func (cs *CategoryService) CreateCategory(ctx context.Context, category model.Ca
 }
 
 func (cs *CategoryService) ListActiveAndPaginatedCategories(ctx context.Context, page, pageSize int) (*[]model.Category, int, error) {
-	log := logger.GetLoggerFromContext(ctx).WithGroup("list_active_categories_service")
-
-	var categories *[]model.Category
-	var totalCount int
-	var categoriesErr, countErr error
-
-	done := make(chan bool, 2)
-
-	go func() {
-		categories, categoriesErr = cs.repo.ListActives(ctx, page, pageSize)
-		done <- true
-	}()
-
-	go func() {
-		totalCount, countErr = cs.repo.CountActives(ctx)
-		done <- true
-	}()
-
-	<-done
-	<-done
-
-	if categoriesErr != nil {
-		log.Error("Failed to list active categories", slog.Any("error", categoriesErr))
-		return nil, 0, xerrors.WithWrapper(xerrors.New("failed to list active categories"), categoriesErr)
+	categories, err := cs.repo.ListActives(ctx, page, pageSize)
+	if err != nil {
+		return nil, 0, xerrors.WithWrapper(xerrors.New("failed to list active categories"), err)
 	}
 
-	if countErr != nil {
-		log.Error("Failed to count active categories", slog.Any("error", countErr))
-		return nil, 0, xerrors.WithWrapper(xerrors.New("failed to count active categories"), countErr)
+	totalCount, err := cs.repo.CountActives(ctx)
+	if err != nil {
+		return nil, 0, xerrors.WithWrapper(xerrors.New("failed to count active categories"), err)
 	}
 
 	return categories, totalCount, nil
@@ -102,6 +81,22 @@ func (cs *CategoryService) UpdateCategoryByID(ctx context.Context, id uuid.UUID,
 
 	log.Info("Post updated", slog.String("id", updatedCategory.ID.String()))
 	return updatedCategory, nil
+}
+
+func (cs *CategoryService) SetCategoryActive(ctx context.Context, id uuid.UUID, active bool) (*model.Category, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("set_active_category_service")
+
+	category, err := cs.repo.SetActive(ctx, id, active)
+	if err != nil {
+		log.Error("Failed to update category status", slog.String("id", id.String()), slog.Bool("active", active), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("failed to update category status"), err)
+	}
+
+	log.Info("Category status updated",
+		slog.String("id", category.ID.String()),
+		slog.String("slug", category.Slug),
+		slog.Bool("active", active))
+	return category, nil
 }
 
 func (cs *CategoryService) generateUniqueSlug(ctx context.Context, n string) (string, error) {

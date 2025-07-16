@@ -138,6 +138,44 @@ func (ch *CategoryHandler) UpdateCategoryByIDHandler(w http.ResponseWriter, r *h
 	httpx.WriteJSON(w, http.StatusOK, res)
 }
 
+func (ch *CategoryHandler) ToggleCategoryActiveHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("toggle_category_active")
+
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "category id is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "invalid category id format")
+		return
+	}
+
+	inputData, err := httpx.Bind[struct {
+		Active bool `json:"active"`
+	}](r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "invalid request body")
+		return
+	}
+
+	post, err := ch.service.SetCategoryActive(ctx, id, inputData.Active)
+	if err != nil {
+		log.Error("Failed to toggle category active status", slog.String("id", id.String()),
+			slog.Bool("active", inputData.Active), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "failed to update category status")
+		return
+	}
+
+	log.Info("Category status updated", slog.String("id", id.String()), slog.Bool("active", inputData.Active))
+
+	res := dto.ToCategoryFullResponse(post)
+	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
 // validateAllowedQueryParams validates that all query parameters in the HTTP request
 // are present in the allowed parameters whitelist. This function implements a defensive
 // approach by rejecting any unknown parameters.
