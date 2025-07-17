@@ -79,7 +79,7 @@ func (ps *PostService) CreatePost(ctx context.Context, post model.Post) (*model.
 	return createdPost, nil
 }
 
-func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page, pageSize int) ([]model.PostPreview, int, error) {
+func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page, pageSize int, categorySlug *string) ([]model.PostPreview, int, error) {
 	log := logger.GetLoggerFromContext(ctx).WithGroup("list_published_posts_service")
 
 	var posts []model.PostPreview
@@ -89,12 +89,12 @@ func (ps *PostService) ListPublishedAndPaginatedPosts(ctx context.Context, page,
 	done := make(chan bool, 2)
 
 	go func() {
-		posts, postsErr = ps.repo.ListPublished(ctx, page, pageSize)
+		posts, postsErr = ps.repo.ListPublished(ctx, page, pageSize, categorySlug)
 		done <- true
 	}()
 
 	go func() {
-		totalCount, countErr = ps.repo.CountPublished(ctx)
+		totalCount, countErr = ps.repo.CountPublished(ctx, categorySlug)
 		done <- true
 	}()
 

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/contracts/dto"
@@ -72,7 +73,7 @@ func (ph *PostHandler) ListPostsHandler(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	log := logger.GetLoggerFromContext(ctx).WithGroup("list_posts")
 
-	allowedParams := []string{"page", "page_size"}
+	allowedParams := []string{"page", "page_size", "category_slug"}
 	if err := validateAllowedQueryParams(r, allowedParams); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, err.Error())
 		return
@@ -84,7 +85,7 @@ func (ph *PostHandler) ListPostsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	posts, totalCount, err := ph.service.ListPublishedAndPaginatedPosts(ctx, input.Page, input.PageSize)
+	posts, totalCount, err := ph.service.ListPublishedAndPaginatedPosts(ctx, input.Page, input.PageSize, input.CategorySlug)
 	if err != nil {
 		log.Error("Failed to list posts", slog.Any("error", err))
 		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to retrieve posts")
@@ -277,6 +278,13 @@ func parseListPostQueryParams(r *http.Request) (dto.PaginationParams, error) {
 		}
 		input.PageSize = ps
 	}
+
+	var categorySlug *string
+	if slug := strings.TrimSpace(r.URL.Query().Get("category_slug")); slug != "" {
+		categorySlug = &slug
+	}
+
+	input.CategorySlug = categorySlug
 	return input, nil
 }
 

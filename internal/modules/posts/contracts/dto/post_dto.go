@@ -145,8 +145,9 @@ func (upr *UpdatePostRequest) ToUpdateMap() (map[string]any, error) {
 
 // PaginationParams represents basic pagination input parameters for paginated endpoints
 type PaginationParams struct {
-	Page     int `json:"page"`
-	PageSize int `json:"page_size"`
+	Page         int     `json:"page"`
+	PageSize     int     `json:"page_size"`
+	CategorySlug *string `json:"category_slug,omitempty"`
 }
 
 // PaginationInfo contains metadata returned alongside paginated results

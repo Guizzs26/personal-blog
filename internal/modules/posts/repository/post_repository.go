@@ -138,19 +138,28 @@ func (pr *PostgresPostRepository) IsInactiveByID(ctx context.Context, id uuid.UU
 
 // ListPublished returns a paginated list of published posts,
 // ordered by published_at descending. Only essential preview fields are fetched
-func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageSize int) ([]model.PostPreview, error) {
+func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageSize int, categorySlug *string) ([]model.PostPreview, error) {
 	log := logger.GetLoggerFromContext(ctx).WithGroup("list_published_repository")
 
 	offset := (page - 1) * pageSize
 	query := `
-		SELECT id, title, description, slug, image_id, published_at
-		FROM posts
-		WHERE published = true AND active = true
+		SELECT 
+			p.id, p.title, p.description, p.slug, p.image_id, p.published_at
+		FROM posts p
+		INNER JOIN categories c ON c.id = p.category_id
+		WHERE 
+				p.published = true AND p.active = true AND (c.slug = $3 OR $3 IS NULL)
 		ORDER BY published_at DESC
 		LIMIT $1 OFFSET $2
 	`
 
-	rows, err := pr.db.QueryContext(ctx, query, pageSize, offset)
+	categorySlugParam := sql.NullString{}
+	if categorySlug != nil {
+		categorySlugParam.Valid = true
+		categorySlugParam.String = *categorySlug
+	}
+
+	rows, err := pr.db.QueryContext(ctx, query, pageSize, offset, categorySlugParam)
 	if err != nil {
 		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: list published posts: %v", err), 0)
 	}
@@ -173,17 +182,24 @@ func (pr *PostgresPostRepository) ListPublished(ctx context.Context, page, pageS
 	return posts, nil
 }
 
-func (pr *PostgresPostRepository) CountPublished(ctx context.Context) (int, error) {
+func (pr *PostgresPostRepository) CountPublished(ctx context.Context, categorySlug *string) (int, error) {
 	log := logger.GetLoggerFromContext(ctx).WithGroup("count_published_repository")
 
 	var count int
 	query := `
 		SELECT COUNT(*)
-		FROM posts
-		WHERE published = true AND active = true
+		FROM posts p
+		INNER JOIN categories c ON c.id = p.category_id
+		WHERE p.published = true AND p.active = true AND ($1::TEXT IS NULL OR c.slug = $1)
 	`
 
-	if err := pr.db.QueryRowContext(ctx, query).Scan(&count); err != nil {
+	categorySlugParam := sql.NullString{}
+	if categorySlug != nil {
+		categorySlugParam.Valid = true
+		categorySlugParam.String = *categorySlug
+	}
+
+	if err := pr.db.QueryRowContext(ctx, query, categorySlugParam).Scan(&count); err != nil {
 		return 0, xerrors.WithStackTrace(fmt.Errorf("repository: count published posts: %v", err), 0)
 	}
 
