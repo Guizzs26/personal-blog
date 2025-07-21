@@ -14,6 +14,7 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/service"
 	"github.com/Guizzs26/personal-blog/internal/server/handlers"
+	"github.com/Guizzs26/personal-blog/pkg/jwtx"
 )
 
 func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
@@ -38,18 +39,22 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	postService := service.NewPostService(postRepo, categoryRepo)
 	postHandler := delivery.NewPostHandler(*postService)
 
-	mux.HandleFunc("POST /category", categoryHandler.CreateCategoryHandler)
-	mux.HandleFunc("GET /category", categoryHandler.ListCategoriesHandler)
-	mux.HandleFunc("PATCH /category/{id}", categoryHandler.UpdateCategoryByIDHandler)
-	mux.HandleFunc("PATCH /category/{id}/toggle-active", categoryHandler.ToggleCategoryActiveHandler)
+	mux.Handle("POST /category", protectedRoute(categoryHandler.CreateCategoryHandler))
+	mux.Handle("GET /category", protectedRoute(categoryHandler.ListCategoriesHandler))
+	mux.Handle("PATCH /category/{id}", protectedRoute(categoryHandler.UpdateCategoryByIDHandler))
+	mux.Handle("PATCH /category/{id}/toggle-active", protectedRoute(categoryHandler.ToggleCategoryActiveHandler))
 
-	mux.HandleFunc("POST /post", postHandler.CreatePostHandler)
-	mux.HandleFunc("GET /post", postHandler.ListPostsHandler)
-	mux.HandleFunc("GET /post/{slug}", postHandler.GetPostBySlugHandler)
-	mux.HandleFunc("PATCH /post/{id}/toggle-active", postHandler.TogglePostActiveHandler)
-	mux.HandleFunc("PATCH /post/{id}", postHandler.UpdatePostByIDHandler)
-	mux.HandleFunc("DELETE /post/{id}", postHandler.DeletePostByIDHandler)
+	mux.Handle("POST /post", protectedRoute(postHandler.CreatePostHandler))
+	mux.Handle("GET /post", protectedRoute(postHandler.ListPostsHandler))
+	mux.Handle("GET /post/{slug}", protectedRoute(postHandler.GetPostBySlugHandler))
+	mux.Handle("PATCH /post/{id}/toggle-active", protectedRoute(postHandler.TogglePostActiveHandler))
+	mux.Handle("PATCH /post/{id}", protectedRoute(postHandler.UpdatePostByIDHandler))
+	mux.Handle("DELETE /post/{id}", protectedRoute(postHandler.DeletePostByIDHandler))
 
-	mux.HandleFunc("POST /user", userHandler.CreateUserHandler)
+	mux.Handle("POST /user", protectedRoute(userHandler.CreateUserHandler))
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
+}
+
+func protectedRoute(handler http.HandlerFunc) http.Handler {
+	return jwtx.JWTAuthMiddleware(http.HandlerFunc(handler))
 }
