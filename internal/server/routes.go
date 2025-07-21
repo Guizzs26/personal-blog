@@ -21,8 +21,12 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 
 	// Users module
 	userRepo := userRepo.NewPostgresUserRepository(pgConn)
-	userService := userService.NewUserService(userRepo)
-	userHandler := userDelivery.NewUserHandler(*userService)
+	userSvc := userService.NewUserService(userRepo)
+	userHandler := userDelivery.NewUserHandler(*userSvc)
+
+	// Auth
+	authService := userService.NewAuthService(userRepo)
+	authHandler := userDelivery.NewAuthHandler(*authService)
 
 	// Category module
 	categoryRepo := categoryRepo.NewPostgresCategoryRepository(pgConn)
@@ -47,4 +51,5 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.HandleFunc("DELETE /post/{id}", postHandler.DeletePostByIDHandler)
 
 	mux.HandleFunc("POST /user", userHandler.CreateUserHandler)
+	mux.HandleFunc("POST /auth/login", authHandler.Login)
 }
