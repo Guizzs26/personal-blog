@@ -8,7 +8,7 @@ import (
 	categoryRepo "github.com/Guizzs26/personal-blog/internal/modules/categories/repository"
 	categoryService "github.com/Guizzs26/personal-blog/internal/modules/categories/service"
 	userDelivery "github.com/Guizzs26/personal-blog/internal/modules/identity/delivery"
-	userRepo "github.com/Guizzs26/personal-blog/internal/modules/identity/repository"
+	userRepository "github.com/Guizzs26/personal-blog/internal/modules/identity/repository"
 	userService "github.com/Guizzs26/personal-blog/internal/modules/identity/service"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/delivery"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
@@ -21,12 +21,14 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.HandleFunc("GET /health", handlers.HealthCheckHandler)
 
 	// Users module
-	userRepo := userRepo.NewPostgresUserRepository(pgConn)
+	userRepo := userRepository.NewPostgresUserRepository(pgConn)
 	userSvc := userService.NewUserService(userRepo)
 	userHandler := userDelivery.NewUserHandler(*userSvc)
 
+	refreshTokenRepo := userRepository.NewPostgresRefreshTokenRepository(pgConn)
+
 	// Auth
-	authService := userService.NewAuthService(userRepo)
+	authService := userService.NewAuthService(userRepo, refreshTokenRepo)
 	authHandler := userDelivery.NewAuthHandler(*authService)
 
 	// Category module
@@ -51,7 +53,7 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.Handle("PATCH /post/{id}", protectedRoute(postHandler.UpdatePostByIDHandler))
 	mux.Handle("DELETE /post/{id}", protectedRoute(postHandler.DeletePostByIDHandler))
 
-	mux.Handle("POST /user", protectedRoute(userHandler.CreateUserHandler))
+	mux.HandleFunc("POST /user", userHandler.CreateUserHandler)
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
 }
 

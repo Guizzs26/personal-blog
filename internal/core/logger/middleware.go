@@ -2,6 +2,7 @@ package logger
 
 import (
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
@@ -25,6 +26,17 @@ func (rw *ResponseWriterWrapper) Write(b []byte) (int, error) {
 	return n, err
 }
 
+func getRealIP(r *http.Request) string {
+	ip := r.Header.Get("X-Forwarded-For")
+	if ip == "" {
+		ip = r.Header.Get("X-Real-IP")
+	}
+	if ip == "" {
+		ip, _, _ = net.SplitHostPort(r.RemoteAddr)
+	}
+	return ip
+}
+
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -35,25 +47,31 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			traceID = reqID
 		}
 
-		// Basic logger with only IDs for internal use
+		ip := getRealIP(r)
+		ua := r.UserAgent()
+
+		// Logger base para uso interno (com RequestID e TraceID)
 		baseLogger := slog.Default().With(
 			slog.String("request_id", reqID),
 			slog.String("trace_id", traceID),
 		)
 
-		// Complete logger for request/response logs only
+		// Logger completo com dados de request
 		requestLogger := baseLogger.With(
 			slog.String("method", r.Method),
 			slog.String("path", r.URL.Path),
-			slog.String("remote_addr", r.RemoteAddr),
-			slog.String("user_agent", r.UserAgent()),
+			slog.String("remote_addr", ip),
+			slog.String("user_agent", ua),
 		)
 
-		ctx := WithLogger(r.Context(), baseLogger)
+		// Injeta contexto com logger e identificadores
+		ctx := r.Context()
+		ctx = WithLogger(ctx, baseLogger)
 		ctx = WithRequestID(ctx, reqID)
 		ctx = WithTraceID(ctx, traceID)
+		ctx = WithIPAddress(ctx, ip)
+		ctx = WithUserAgent(ctx, ua)
 
-		// Response info
 		rw := &ResponseWriterWrapper{
 			ResponseWriter: w,
 			statusCode:     http.StatusOK,
@@ -61,10 +79,10 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		requestLogger.Info("Request started")
 
-		// Process request
+		// Processa a requisição
 		next.ServeHTTP(rw, r.WithContext(ctx))
 
-		// Log the end of request with metrics
+		// Finaliza com métricas
 		duration := time.Since(start)
 
 		httpGroup := slog.Group("http",

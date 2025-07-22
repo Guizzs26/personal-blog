@@ -16,7 +16,7 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID, email string) (string, error) {
+func GenerateAccessToken(userID, email string) (string, error) {
 	expirationTime := time.Now().Add(7 * time.Hour)
 
 	claims := CustomClaims{
@@ -39,7 +39,7 @@ func GenerateToken(userID, email string) (string, error) {
 	return tokenStr, nil
 }
 
-func ValidateToken(tokenStr string) (*CustomClaims, error) {
+func ValidateAccessToken(tokenStr string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("validate-token: unexpected signing method: %v", token.Header["alg"])

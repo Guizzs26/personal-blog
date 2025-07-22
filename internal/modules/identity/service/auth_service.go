@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/identity/contracts"
+	"github.com/Guizzs26/personal-blog/internal/modules/identity/model"
 	"github.com/Guizzs26/personal-blog/pkg/hashx"
 	"github.com/Guizzs26/personal-blog/pkg/jwtx"
 )
@@ -15,16 +18,28 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 )
 
+type TokensRes struct {
+	AccessToken  string
+	RefreshToken string
+}
+
 type AuthService struct {
-	repo contracts.IUserRepository
+	userRepo         contracts.IUserRepository
+	refreshTokenRepo contracts.IRefreshTokenRepository
 }
 
-func NewAuthService(repo contracts.IUserRepository) *AuthService {
-	return &AuthService{repo: repo}
+func NewAuthService(
+	userRepo contracts.IUserRepository,
+	refreshTokenRepo contracts.IRefreshTokenRepository,
+) *AuthService {
+	return &AuthService{
+		userRepo:         userRepo,
+		refreshTokenRepo: refreshTokenRepo,
+	}
 }
 
-func (as *AuthService) Login(ctx context.Context, email, password string) (string, error) {
-	user, err := as.repo.FindByEmail(ctx, email)
+func (as *AuthService) Login(ctx context.Context, email, password string) (*TokensRes, error) {
+	user, err := as.userRepo.FindByEmail(ctx, email)
 
 	// try to prevent timing attack
 	validPassword := false
@@ -35,16 +50,38 @@ func (as *AuthService) Login(ctx context.Context, email, password string) (strin
 	}
 
 	if errors.Is(err, sql.ErrNoRows) || !validPassword {
-		return "", ErrUserNotFound
+		return nil, ErrUserNotFound
 	}
 	if err != nil {
-		return "", fmt.Errorf("an error occurred when searching for a user by email: %v", err)
+		return nil, fmt.Errorf("an error occurred when searching for a user by email: %v", err)
 	}
 
-	accessToken, err := jwtx.GenerateToken(user.ID.String(), email)
+	accessToken, err := jwtx.GenerateAccessToken(user.ID.String(), email)
 	if err != nil {
-		return "", fmt.Errorf("an error occurred when generating access jwt token: %v", err)
+		return nil, fmt.Errorf("an error occurred when generating access jwt token: %v", err)
 	}
 
-	return accessToken, nil
+	refreshToken, hashedRefreshToken, err := jwtx.GenerateRefreshToken()
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred when generating refresh token: %v", err)
+	}
+
+	refresh := model.RefreshToken{
+		UserID:    user.ID,
+		TokenHash: hashedRefreshToken,
+		UserAgent: logger.GetUserAgentFromContext(ctx),
+		IPAddress: logger.GetIPAddressFromContext(ctx),
+		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	err = as.refreshTokenRepo.Save(ctx, &refresh)
+	if err != nil {
+		return nil, fmt.Errorf("an error occurred when saving refresh token in database: %v", err)
+	}
+
+	return &TokensRes{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }

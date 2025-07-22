@@ -31,7 +31,7 @@ func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := ah.service.Login(ctx, req.Email, req.Password)
+	tokens, err := ah.service.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -43,6 +43,7 @@ func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, map[string]string{
-		"access_token": accessToken,
+		"access_token":  tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
 	})
 }

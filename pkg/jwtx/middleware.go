@@ -29,7 +29,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 		tokenStr = strings.TrimSpace(tokenStr)
 
-		claims, err := ValidateToken(tokenStr)
+		claims, err := ValidateAccessToken(tokenStr)
 		if err != nil {
 			httpx.WriteError(w, http.StatusUnauthorized, httpx.ErrorCodeUnauthorized, "Invalid token")
 			return

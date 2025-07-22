@@ -5,23 +5,36 @@ import (
 	"log/slog"
 )
 
-// contextKey is a custom type to prevent key collisions in context.
 type contextKey string
 
-// Keys used to store/retrieve values from context.
 const (
-	loggerKey    contextKey = "logger"
-	requestIDKey contextKey = "request_id"
-	traceIDKey   contextKey = "trace_id"
+	loggerKey       contextKey = "logger"
+	requestIDKey    contextKey = "request_id"
+	traceIDKey      contextKey = "trace_id"
+	ctxKeyUserAgent contextKey = "user_agent"
+	ctxKeyIP        contextKey = "ip_address"
 )
 
-// WithLogger stores a structured logger in the context
 func WithLogger(ctx context.Context, l *slog.Logger) context.Context {
 	return context.WithValue(ctx, loggerKey, l)
 }
 
-// GetLoggerFromContext retrieves the logger from the context
-// If not found, it return slog.Default()
+func WithRequestID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, requestIDKey, id)
+}
+
+func WithTraceID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, traceIDKey, id)
+}
+
+func WithIPAddress(ctx context.Context, ip string) context.Context {
+	return context.WithValue(ctx, ctxKeyIP, ip)
+}
+
+func WithUserAgent(ctx context.Context, ua string) context.Context {
+	return context.WithValue(ctx, ctxKeyUserAgent, ua)
+}
+
 func GetLoggerFromContext(ctx context.Context) *slog.Logger {
 	if l, ok := ctx.Value(loggerKey).(*slog.Logger); ok {
 		return l
@@ -29,13 +42,6 @@ func GetLoggerFromContext(ctx context.Context) *slog.Logger {
 	return slog.Default()
 }
 
-// WithRequestID stores the request ID in the context
-func WithRequestID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, requestIDKey, id)
-}
-
-// GetRequestIDFromContext retrieves the request ID from the context
-// Returns an empty string if not found
 func GetRequestIDFromContext(ctx context.Context) string {
 	if rid, ok := ctx.Value(requestIDKey).(string); ok {
 		return rid
@@ -43,16 +49,23 @@ func GetRequestIDFromContext(ctx context.Context) string {
 	return ""
 }
 
-// WithTraceID stores the trace ID in the context.
-func WithTraceID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, traceIDKey, id)
-}
-
-// GetTraceIDFromContext retrieves the trace ID from the context
-// Returns an empty string if not found
 func GetTraceIDFromContext(ctx context.Context) string {
 	if tid, ok := ctx.Value(traceIDKey).(string); ok {
 		return tid
+	}
+	return ""
+}
+
+func GetIPAddressFromContext(ctx context.Context) string {
+	if ip, ok := ctx.Value(ctxKeyIP).(string); ok {
+		return ip
+	}
+	return ""
+}
+
+func GetUserAgentFromContext(ctx context.Context) string {
+	if ua, ok := ctx.Value(ctxKeyUserAgent).(string); ok {
+		return ua
 	}
 	return ""
 }
