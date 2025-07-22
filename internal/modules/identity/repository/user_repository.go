@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/Guizzs26/personal-blog/internal/modules/identity/model"
+	"github.com/google/uuid"
 	"github.com/mdobak/go-xerrors"
 )
 
@@ -81,6 +82,33 @@ func (ur *PostgresUserRepository) FindByEmail(ctx context.Context, email string)
 	}
 	if err != nil {
 		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: find by email: %v", err), 0)
+	}
+
+	return &user, nil
+}
+
+func (ur *PostgresUserRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
+	query := `
+		SELECT id, name, email, password, active, created_at, updated_at
+		FROM users
+		WHERE id = $1 AND active = true
+	`
+
+	var user model.User
+	err := ur.db.QueryRowContext(ctx, query, id).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.Password,
+		&user.Active,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sql.ErrNoRows
+	}
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: find by id: %v", err), 0)
 	}
 
 	return &user, nil

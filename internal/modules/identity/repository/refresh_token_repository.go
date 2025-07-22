@@ -88,11 +88,9 @@ func (prr *PostgresRefreshTokenRepository) FindByHash(ctx context.Context, hash 
 		&token.ExpiresAt,
 		&token.RevokedAt,
 	)
-
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sql.ErrNoRows
 	}
-
 	if err != nil {
 		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: find refresh token by hash: %v", err), 0)
 	}

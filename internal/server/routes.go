@@ -55,6 +55,7 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 
 	mux.HandleFunc("POST /user", userHandler.CreateUserHandler)
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
+	mux.HandleFunc("POST /auth/refresh", authHandler.RefreshTokenHandler)
 }
 
 func protectedRoute(handler http.HandlerFunc) http.Handler {

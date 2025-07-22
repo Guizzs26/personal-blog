@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/Guizzs26/personal-blog/internal/modules/identity/contracts/dto"
@@ -45,5 +46,41 @@ func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]string{
 		"access_token":  tokens.AccessToken,
 		"refresh_token": tokens.RefreshToken,
+	})
+}
+
+func (ah *AuthHandler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	req, err := httpx.Bind[dto.RefreshTokenRequest](r)
+	if err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
+			return
+		}
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid request body")
+		return
+	}
+
+	newAccessToken, newRefreshToken, err := ah.service.RefreshToken(ctx, req.RefreshToken)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidRefreshToken),
+			errors.Is(err, service.ErrRefreshTokenExpired),
+			errors.Is(err, service.ErrRefreshTokenRevoked):
+			httpx.WriteError(w, http.StatusUnauthorized, httpx.ErrorCodeUnauthorized, "Invalid or expired refresh token")
+
+		case errors.Is(err, service.ErrUserNotFound):
+			httpx.WriteError(w, http.StatusUnauthorized, httpx.ErrorCodeUnauthorized, "User not found")
+
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal server error")
+		}
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{
+		"newAccessToken":     newAccessToken,
+		"newRawRefreshToken": newRefreshToken,
 	})
 }
