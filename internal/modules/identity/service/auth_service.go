@@ -141,3 +141,7 @@ func (as *AuthService) RefreshToken(ctx context.Context, refreshTokenInput strin
 
 	return newAccessToken, rawRefreshToken, nil
 }
+
+func (s *AuthService) CleanupExpiredOrRevokedTokens(ctx context.Context) error {
+	return s.refreshTokenRepo.DeleteExpiredOrRevoked(ctx)
+}

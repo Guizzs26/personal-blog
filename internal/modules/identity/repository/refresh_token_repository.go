@@ -54,7 +54,7 @@ func (prr *PostgresRefreshTokenRepository) RevokeByID(ctx context.Context, id uu
 	return nil
 }
 
-func (prr *PostgresRefreshTokenRepository) DeleteExpired(ctx context.Context) error {
+func (prr *PostgresRefreshTokenRepository) DeleteExpiredOrRevoked(ctx context.Context) error {
 	query := `
 		DELETE FROM refresh_tokens
 		WHERE expires_at < $1

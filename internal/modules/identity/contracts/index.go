@@ -17,6 +17,6 @@ type IUserRepository interface {
 type IRefreshTokenRepository interface {
 	Save(ctx context.Context, token *model.RefreshToken) error
 	RevokeByID(ctx context.Context, id uuid.UUID) error
-	DeleteExpired(ctx context.Context) error
+	DeleteExpiredOrRevoked(ctx context.Context) error
 	FindByHash(ctx context.Context, hash string) (*model.RefreshToken, error)
 }
