@@ -142,6 +142,22 @@ func (as *AuthService) RefreshToken(ctx context.Context, refreshTokenInput strin
 	return newAccessToken, rawRefreshToken, nil
 }
 
-func (s *AuthService) CleanupExpiredOrRevokedTokens(ctx context.Context) error {
-	return s.refreshTokenRepo.DeleteExpiredOrRevoked(ctx)
+func (as *AuthService) Logout(ctx context.Context, refreshTokenInput string) error {
+	hashed := jwtx.HashRefreshToken(refreshTokenInput)
+
+	refreshToken, err := as.refreshTokenRepo.FindByHash(ctx, hashed)
+	if err != nil {
+		return ErrInvalidRefreshToken
+	}
+
+	err = as.refreshTokenRepo.RevokeByID(ctx, refreshToken.ID)
+	if err != nil {
+		return fmt.Errorf("failed to revoke refresh token by id: %v", err)
+	}
+
+	return nil
+}
+
+func (as *AuthService) CleanupExpiredOrRevokedTokens(ctx context.Context) error {
+	return as.refreshTokenRepo.DeleteExpiredOrRevoked(ctx)
 }

@@ -49,6 +49,33 @@ func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (ah *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	req, err := httpx.Bind[dto.RefreshTokenRequest](r)
+	if err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
+			return
+		}
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid request body")
+		return
+	}
+
+	err = ah.service.Logout(ctx, req.RefreshToken)
+	if err != nil {
+		switch err {
+		case service.ErrInvalidRefreshToken:
+			httpx.WriteError(w, http.StatusUnauthorized, httpx.ErrorCodeUnauthorized, "Invalid refresh token")
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Internal server error")
+		}
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusNoContent, "")
+}
+
 func (ah *AuthHandler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

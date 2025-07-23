@@ -13,8 +13,8 @@ import (
 func StartCleanupCronJob(authService *service.AuthService) error {
 	c := cron.New()
 
-	// Schedule cleanup every 1 minute (for testing)
-	_, err := c.AddFunc("* * * * *", func() {
+	// Schedule cleanup every 1 week
+	_, err := c.AddFunc("0 0 */7 * *", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
