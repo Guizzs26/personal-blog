@@ -8,6 +8,7 @@ import (
 
 type User struct {
 	ID        uuid.UUID `json:"id" db:"id"`
+	GitHubID  *int64    `json:"github_id,omitempty" db:"github_id"`
 	Name      string    `json:"name" db:"id"`
 	Email     string    `json:"email" db:"email"`
 	Password  string    `json:"-" db:"password"`

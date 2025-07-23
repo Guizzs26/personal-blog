@@ -15,10 +15,12 @@ import (
 )
 
 var (
-	ErrInvalidRefreshToken = errors.New("invalid refresh token")
-	ErrRefreshTokenExpired = errors.New("refresh token expired")
-	ErrRefreshTokenRevoked = errors.New("refresh token revoked")
-	ErrUserNotFound        = errors.New("user not found")
+	ErrInvalidRefreshToken       = errors.New("invalid refresh token")
+	ErrRefreshTokenExpired       = errors.New("refresh token expired")
+	ErrRefreshTokenRevoked       = errors.New("refresh token revoked")
+	ErrUserNotFound              = errors.New("user not found")
+	ErrUserExistsWithSystemLogin = errors.New("user already exists with system login")
+	ErrUserExistsWithGitHubLogin = errors.New("user already exists with github login")
 )
 
 type TokensResponse struct {
@@ -52,6 +54,12 @@ func (as *AuthService) Login(ctx context.Context, email, password string) (*Toke
 	// try to prevent timing attack
 	validPassword := false
 	if err == nil {
+		// Check if user was created via GitHub (has github_id)
+		if user.GitHubID != nil {
+			// User was created through GitHub, prohibit system login
+			hashx.Compare("dummyPassword", password) // prevent timing attack
+			return nil, ErrUserExistsWithGitHubLogin
+		}
 		validPassword = hashx.Compare(user.Password, password)
 	} else {
 		hashx.Compare("dummyPassword", password)
@@ -68,15 +76,39 @@ func (as *AuthService) Login(ctx context.Context, email, password string) (*Toke
 }
 
 func (as *AuthService) LoginWithGitHub(ctx context.Context, ghUser *model.GitHubUser) (*TokensResponse, error) {
-	user, err := as.userRepo.FindByEmail(ctx, ghUser.Email)
-	if errors.Is(err, sql.ErrNoRows) {
-		// Create user if not exists
-		user, err = as.createUserFromGitHub(ctx, ghUser)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create user from github: %w", err)
+	// First attempt: search by GitHub ID (more reliable)
+	user, err := as.userRepo.FindByGitHubID(ctx, ghUser.ID)
+	if err == nil {
+		// User found by GitHub ID
+		// Check if the email has changed and update if necessary
+		if user.Email != ghUser.Email {
+			user.Email = ghUser.Email
+			if err := as.userRepo.Update(ctx, user); err != nil {
+				return nil, fmt.Errorf("failed to update user email: %w", err)
+			}
 		}
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to find user: %w", err)
+		return as.generateTokensForUser(ctx, user)
+	}
+
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("failed to find user by github id: %w", err)
+	}
+
+	// Second attempt: search by email to check if user already exists
+	_, err = as.userRepo.FindByEmail(ctx, ghUser.Email)
+	if err == nil {
+		// User exists but was created through the system (not GitHub)
+		// We prohibit GitHub login for system-created users
+		return nil, ErrUserExistsWithSystemLogin
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("failed to find user by email: %w", err)
+	}
+
+	// User does not exist - create new (only GitHub users from now on)
+	user, err = as.createUserFromGitHub(ctx, ghUser)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user from github: %w", err)
 	}
 
 	return as.generateTokensForUser(ctx, user)
@@ -187,8 +219,9 @@ func (as *AuthService) generateTokensForUser(ctx context.Context, user *model.Us
 
 func (as *AuthService) createUserFromGitHub(ctx context.Context, ghUser *model.GitHubUser) (*model.User, error) {
 	userFromGh := model.User{
-		Name:  ghUser.Name,
-		Email: ghUser.Email,
+		Name:     ghUser.Name,
+		Email:    ghUser.Email,
+		GitHubID: &ghUser.ID,
 	}
 
 	user, err := as.userRepo.Create(ctx, userFromGh)

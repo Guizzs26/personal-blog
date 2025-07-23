@@ -47,6 +47,30 @@ func (ur *PostgresUserRepository) Create(ctx context.Context, user model.User) (
 	return &createdUser, nil
 }
 
+// Generic method
+func (ur *PostgresUserRepository) Update(ctx context.Context, user *model.User) error {
+	const query = `
+		UPDATE users
+		SET name = $1, email = $2, password = $3, active = $4, github_id = $5, updated_at = NOW()
+		WHERE id = $6
+	`
+
+	_, err := ur.db.ExecContext(ctx, query,
+		user.Name,
+		user.Email,
+		user.Password,
+		user.Active,
+		user.GitHubID,
+		user.ID,
+	)
+
+	if err != nil {
+		return xerrors.WithStackTrace(fmt.Errorf("repository: update user: %v", err), 0)
+	}
+
+	return nil
+}
+
 func (ur *PostgresUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var exists bool
 	query := `
@@ -109,6 +133,34 @@ func (ur *PostgresUserRepository) FindByID(ctx context.Context, id uuid.UUID) (*
 	}
 	if err != nil {
 		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: find by id: %v", err), 0)
+	}
+
+	return &user, nil
+}
+
+func (ur *PostgresUserRepository) FindByGitHubID(ctx context.Context, gitHubID int64) (*model.User, error) {
+	const query = `
+		SELECT id, name, email, password, active, github_id, created_at, updated_at
+		FROM users
+		WHERE github_id = $1
+	`
+
+	var user model.User
+	err := ur.db.QueryRowContext(ctx, query, gitHubID).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.Password,
+		&user.Active,
+		&user.GitHubID,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sql.ErrNoRows
+	}
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: find by github_id: %v", err), 0)
 	}
 
 	return &user, nil

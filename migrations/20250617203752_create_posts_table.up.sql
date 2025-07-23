@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  github_id TEXT UNIQUE,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   description VARCHAR(254) NOT NULL,

@@ -101,7 +101,14 @@ func (ah *AuthHandler) GitHubCallback(w http.ResponseWriter, r *http.Request) {
 
 	tokens, err := ah.authservice.LoginWithGitHub(ctx, ghUser)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "failed to login with github")
+		switch err {
+		case service.ErrUserExistsWithSystemLogin:
+			httpx.WriteError(w, http.StatusConflict, httpx.ErrorCodeConflict, "This email is already registered. Please use email/password login instead.")
+		case service.ErrUserExistsWithGitHubLogin:
+			httpx.WriteError(w, http.StatusConflict, httpx.ErrorCodeConflict, "This email is already registered. Please use github login instead.")
+		default:
+			httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "failed to login with github")
+		}
 		return
 	}
 
