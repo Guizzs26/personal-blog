@@ -47,6 +47,36 @@ func (ur *PostgresUserRepository) Create(ctx context.Context, user model.User) (
 	return &createdUser, nil
 }
 
+func (ur *PostgresUserRepository) CreateFromGitHub(ctx context.Context, user model.User) (*model.User, error) {
+	query := `
+		INSERT INTO users
+			(name, email, password, github_id)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, name, email, active, created_at, updated_at, github_id
+	`
+
+	var createdUser model.User
+	err := ur.db.QueryRowContext(ctx, query,
+		user.Name,
+		user.Email,
+		user.Password,
+		user.GitHubID,
+	).Scan(
+		&createdUser.ID,
+		&createdUser.Name,
+		&createdUser.Email,
+		&createdUser.Active,
+		&createdUser.CreatedAt,
+		&createdUser.UpdatedAt,
+		&createdUser.GitHubID,
+	)
+	if err != nil {
+		return nil, xerrors.WithStackTrace(fmt.Errorf("repository: insert user (github): %v", err), 0)
+	}
+
+	return &createdUser, nil
+}
+
 // Generic method
 func (ur *PostgresUserRepository) Update(ctx context.Context, user *model.User) error {
 	const query = `

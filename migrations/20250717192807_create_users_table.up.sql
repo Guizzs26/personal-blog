@@ -1,5 +1,6 @@
 CREATE TABLE users(
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  github_id BIGINT UNIQUE,
   name VARCHAR(67) NOT NULL,
   email VARCHAR(255) NOT NULL,
   password VARCHAR(255) NOT NULL, 

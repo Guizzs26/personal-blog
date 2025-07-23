@@ -9,6 +9,7 @@ import (
 
 type IUserRepository interface {
 	Create(ctx context.Context, user model.User) (*model.User, error)
+	CreateFromGitHub(ctx context.Context, user model.User) (*model.User, error)
 	Update(ctx context.Context, user *model.User) error
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	FindByEmail(ctx context.Context, email string) (*model.User, error)
