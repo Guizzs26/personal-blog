@@ -2,7 +2,10 @@ package delivery
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
+	"os"
 
 	"github.com/Guizzs26/personal-blog/internal/modules/identity/contracts/dto"
 	"github.com/Guizzs26/personal-blog/internal/modules/identity/service"
@@ -12,11 +15,18 @@ import (
 )
 
 type AuthHandler struct {
-	service service.AuthService
+	authservice   service.AuthService
+	githubservice service.GitHubOAuthService
 }
 
-func NewAuthHandler(service service.AuthService) *AuthHandler {
-	return &AuthHandler{service: service}
+func NewAuthHandler(
+	authservice service.AuthService,
+	githubservice service.GitHubOAuthService,
+) *AuthHandler {
+	return &AuthHandler{
+		authservice:   authservice,
+		githubservice: githubservice,
+	}
 }
 
 func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +42,7 @@ func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := ah.service.Login(ctx, req.Email, req.Password)
+	tokens, err := ah.authservice.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -49,6 +59,55 @@ func (ah *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (ah *AuthHandler) GitHubLogin(w http.ResponseWriter, r *http.Request) {
+	clientID := os.Getenv("GITHUB_CLIENT_ID")
+	redirectURI := os.Getenv("GITHUB_CALLBACK_URL")
+
+	if clientID == "" || redirectURI == "" {
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "github oauth not configured")
+		return
+	}
+
+	authURL := fmt.Sprintf(
+		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=%s",
+		url.QueryEscape(clientID),
+		url.QueryEscape(redirectURI),
+		url.QueryEscape("user:email"),
+	)
+
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+func (ah *AuthHandler) GitHubCallback(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "missing code parameter")
+		return
+	}
+
+	accessToken, err := ah.githubservice.ExchangeCodeForAccessToken(code)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "error during github login")
+		return
+	}
+
+	ghUser, err := ah.githubservice.GetUserInfo(accessToken)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "failed to get user info")
+		return
+	}
+
+	tokens, err := ah.authservice.LoginWithGitHub(ctx, ghUser)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "failed to login with github")
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, tokens)
+}
+
 func (ah *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -62,7 +121,7 @@ func (ah *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = ah.service.Logout(ctx, req.RefreshToken)
+	err = ah.authservice.Logout(ctx, req.RefreshToken)
 	if err != nil {
 		switch err {
 		case service.ErrInvalidRefreshToken:
@@ -89,7 +148,7 @@ func (ah *AuthHandler) RefreshTokenHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	newAccessToken, newRefreshToken, err := ah.service.RefreshToken(ctx, req.RefreshToken)
+	newAccessToken, newRefreshToken, err := ah.authservice.RefreshToken(ctx, req.RefreshToken)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidRefreshToken),

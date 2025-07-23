@@ -31,7 +31,8 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 
 	// Auth
 	authService := userService.NewAuthService(userRepo, refreshTokenRepo)
-	authHandler := userDelivery.NewAuthHandler(*authService)
+	githubService := userService.SetupGitHubOAuth()
+	authHandler := userDelivery.NewAuthHandler(*authService, *githubService)
 
 	setupCron(authService)
 
@@ -58,6 +59,8 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.Handle("DELETE /post/{id}", protectedRoute(postHandler.DeletePostByIDHandler))
 
 	mux.HandleFunc("POST /user", userHandler.CreateUserHandler)
+	mux.HandleFunc("GET /auth/github/login", authHandler.GitHubLogin)
+	mux.HandleFunc("GET /auth/github/callback", authHandler.GitHubCallback)
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
 	mux.HandleFunc("POST /auth/logout", authHandler.Logout)
 	mux.HandleFunc("POST /auth/refresh", authHandler.RefreshTokenHandler)
