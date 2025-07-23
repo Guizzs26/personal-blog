@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 
 	categoryDelivery "github.com/Guizzs26/personal-blog/internal/modules/categories/delivery"
@@ -14,6 +15,7 @@ import (
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
 	"github.com/Guizzs26/personal-blog/internal/modules/posts/service"
 	"github.com/Guizzs26/personal-blog/internal/server/handlers"
+	"github.com/Guizzs26/personal-blog/pkg/cronx"
 	"github.com/Guizzs26/personal-blog/pkg/jwtx"
 )
 
@@ -30,6 +32,8 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	// Auth
 	authService := userService.NewAuthService(userRepo, refreshTokenRepo)
 	authHandler := userDelivery.NewAuthHandler(*authService)
+
+	setupCron(authService)
 
 	// Category module
 	categoryRepo := categoryRepo.NewPostgresCategoryRepository(pgConn)
@@ -60,4 +64,10 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 
 func protectedRoute(handler http.HandlerFunc) http.Handler {
 	return jwtx.JWTAuthMiddleware(http.HandlerFunc(handler))
+}
+
+func setupCron(authService *userService.AuthService) {
+	if err := cronx.StartCleanupCronJob(authService); err != nil {
+		log.Fatalf("Failed to start cleanup cron job: %v", err)
+	}
 }
