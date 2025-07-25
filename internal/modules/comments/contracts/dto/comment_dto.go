@@ -44,17 +44,16 @@ func (ccr *CreateCommentRequest) ToModel() (model.Comment, error) {
 }
 
 type CommentFullResponse struct {
-	ID              string     `json:"id"`
-	PostID          string     `json:"post_id"`
-	UserID          string     `json:"user_id"`
-	ParentCommentID *string    `json:"parent_comment_id,omitempty"`
-	Content         string     `json:"content"`
-	Status          string     `json:"status"`
-	Active          bool       `json:"active"`
-	IsPinned        bool       `json:"is_pinned"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	DeletedAt       *time.Time `json:"deleted_at,omitempty"`
+	ID              string    `json:"id"`
+	PostID          string    `json:"post_id"`
+	UserID          string    `json:"user_id"`
+	ParentCommentID *string   `json:"parent_comment_id,omitempty"`
+	Content         string    `json:"content"`
+	Status          string    `json:"status"`
+	Active          bool      `json:"active"`
+	IsPinned        bool      `json:"is_pinned"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 func ToCommentFullResponse(comment *model.Comment) *CommentFullResponse {
@@ -75,6 +74,5 @@ func ToCommentFullResponse(comment *model.Comment) *CommentFullResponse {
 		IsPinned:        comment.IsPinned,
 		CreatedAt:       comment.CreatedAt,
 		UpdatedAt:       comment.UpdatedAt,
-		DeletedAt:       comment.DeletedAt,
 	}
 }

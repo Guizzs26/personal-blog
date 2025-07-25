@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	contracst "github.com/Guizzs26/personal-blog/internal/modules/comments/contracts"
 	"github.com/Guizzs26/personal-blog/internal/modules/comments/model"
@@ -23,9 +24,9 @@ func (cs *CommentService) CreateComment(ctx context.Context, comment *model.Comm
 		existing, err := cs.repo.FindByID(ctx, *comment.ParentCommentID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return nil, xerrors.New("parent comment not found")
+				return nil, xerrors.WithWrapper(xerrors.New("parent comment not found"), err)
 			}
-			return nil, err
+			return nil, fmt.Errorf("error when checking parent comment: %v", err)
 		}
 
 		if existing.PostID != comment.PostID {
