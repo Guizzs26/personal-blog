@@ -1,4 +1,4 @@
-package contracst
+package contracts
 
 import (
 	"context"

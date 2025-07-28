@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/Guizzs26/personal-blog/internal/modules/comments/contracts/dto"
@@ -45,4 +46,40 @@ func (ch *CommentHandler) CreateCommentHandler(w http.ResponseWriter, r *http.Re
 
 	res := dto.ToCommentFullResponse(createdComment)
 	httpx.WriteJSON(w, 201, res)
+}
+
+func (ch *CommentHandler) ListPostCommentsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	req, err := httpx.Bind[dto.ListPostCommentsRequest](r)
+	if err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
+			return
+		}
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid request body")
+		return
+	}
+
+	postID, err := req.ToModel()
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid post ID")
+		return
+	}
+
+	comments, err := ch.service.ListPostComments(ctx, postID)
+	if errors.Is(err, service.ErrPostNotFound) {
+		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Post not found")
+		return
+	}
+	if errors.Is(err, service.ErrPostNotPublished) {
+		httpx.WriteError(w, http.StatusForbidden, httpx.ErrorCodeForbidden, "Post is not published")
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to list comments")
+		return
+	}
+
+	httpx.WriteJSON(w, 200, comments)
 }

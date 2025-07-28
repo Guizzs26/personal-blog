@@ -76,3 +76,15 @@ func ToCommentFullResponse(comment *model.Comment) *CommentFullResponse {
 		UpdatedAt:       comment.UpdatedAt,
 	}
 }
+
+type ListPostCommentsRequest struct {
+	PostID string `json:"post_id" validate:"required,uuid4"`
+}
+
+func (lpc *ListPostCommentsRequest) ToModel() (uuid.UUID, error) {
+	postUUID, err := uuid.Parse(lpc.PostID)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("failed to parse post_id to a valid uuid: %w", err)
+	}
+	return postUUID, nil
+}

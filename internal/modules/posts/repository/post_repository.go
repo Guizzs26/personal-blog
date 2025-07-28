@@ -237,7 +237,7 @@ func (pr *PostgresPostRepository) FindPublishedBySlug(ctx context.Context, slug 
 }
 
 func (r *PostgresPostRepository) FindByIDIgnoreActive(ctx context.Context, id uuid.UUID) (*model.Post, error) {
-	const query = `
+	query := `
 		SELECT id, title, content, description, slug, author_id, image_id, 
 					 published, published_at, active, created_at, updated_at
 		FROM posts

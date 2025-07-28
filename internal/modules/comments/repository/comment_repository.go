@@ -89,16 +89,25 @@ func (pcr *PostgresCommentsRepository) FindByID(ctx context.Context, id uuid.UUI
 
 func (pcr *PostgresCommentsRepository) FindAllByPostID(ctx context.Context, postID uuid.UUID) ([]model.Comment, error) {
 	query := `
-        SELECT 
-            id, post_id, user_id, parent_comment_id, content,
-            status, active, is_pinned, created_at, updated_at
-        FROM comments 
-        WHERE post_id = $1
-            AND active = true
-        ORDER BY 
-            is_pinned DESC, 
-            created_at ASC
-    `
+			WITH ordered_comments AS (
+				SELECT
+					id, post_id, user_id, parent_comment_id, content,
+					status, is_pinned, active, created_at, updated_at,
+					CASE 	
+						WHEN parent_comment_id IS NULL THEN 0
+					END as comment_level
+				FROM comments
+				WHERE post_id = $1
+					AND active = true
+			)
+			SELECT id, post_id, user_id, parent_comment_id, content,
+				status, is_pinned, active, created_at, updated_at
+			FROM ordered_comments
+			ORDER BY
+				comment_level ASC,
+				is_pinned DESC,
+				created_at ASC
+			`
 
 	rows, err := pcr.db.QueryContext(ctx, query, postID)
 	if err != nil {
@@ -116,8 +125,8 @@ func (pcr *PostgresCommentsRepository) FindAllByPostID(ctx context.Context, post
 			&comment.ParentCommentID,
 			&comment.Content,
 			&comment.Status,
-			&comment.Active,
 			&comment.IsPinned,
+			&comment.Active,
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
 		)
