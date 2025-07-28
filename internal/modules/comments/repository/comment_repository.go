@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 
+	"github.com/Guizzs26/personal-blog/internal/core/logger"
 	"github.com/Guizzs26/personal-blog/internal/modules/comments/model"
 	"github.com/google/uuid"
 	"github.com/mdobak/go-xerrors"
@@ -20,6 +22,8 @@ func NewPostgresCommentsRepository(db *sql.DB) *PostgresCommentsRepository {
 }
 
 func (pcr *PostgresCommentsRepository) Create(ctx context.Context, comment *model.Comment) (*model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
         INSERT INTO comments
             (post_id, user_id, parent_comment_id, content)
@@ -49,13 +53,23 @@ func (pcr *PostgresCommentsRepository) Create(ctx context.Context, comment *mode
 		&createdComment.UpdatedAt,
 	)
 	if err != nil {
+		log.Error("Failed to create comment",
+			slog.String("post_id", comment.PostID.String()),
+			slog.Any("error", err),
+		)
 		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to create comment: %v", err), 0)
 	}
 
+	log.Info("Comment created successfully",
+		slog.String("comment_id", createdComment.ID.String()),
+		slog.String("post_id", createdComment.PostID.String()),
+	)
 	return &createdComment, nil
 }
 
 func (pcr *PostgresCommentsRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
         SELECT 
             id, post_id, user_id, parent_comment_id, content,
@@ -79,38 +93,44 @@ func (pcr *PostgresCommentsRepository) FindByID(ctx context.Context, id uuid.UUI
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			log.Warn("Comment not found", slog.String("comment_id", id.String()))
 			return nil, sql.ErrNoRows
 		}
+		log.Error("Failed to find comment by ID", slog.String("comment_id", id.String()), slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to find comment by id: %v", err), 0)
 	}
 
+	log.Info("Comment found", slog.String("comment_id", comment.ID.String()))
 	return &comment, nil
 }
 
 func (pcr *PostgresCommentsRepository) FindAllByPostID(ctx context.Context, postID uuid.UUID) ([]model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
-			WITH ordered_comments AS (
-				SELECT
-					id, post_id, user_id, parent_comment_id, content,
-					status, is_pinned, active, created_at, updated_at,
-					CASE 	
-						WHEN parent_comment_id IS NULL THEN 0
-					END as comment_level
-				FROM comments
-				WHERE post_id = $1
-					AND active = true
-			)
-			SELECT id, post_id, user_id, parent_comment_id, content,
-				status, is_pinned, active, created_at, updated_at
-			FROM ordered_comments
-			ORDER BY
-				comment_level ASC,
-				is_pinned DESC,
-				created_at ASC
-			`
+            WITH ordered_comments AS (
+                SELECT
+                    id, post_id, user_id, parent_comment_id, content,
+                    status, is_pinned, active, created_at, updated_at,
+                    CASE 	
+                        WHEN parent_comment_id IS NULL THEN 0
+                    END as comment_level
+                FROM comments
+                WHERE post_id = $1
+                    AND active = true
+            )
+            SELECT id, post_id, user_id, parent_comment_id, content,
+                status, is_pinned, active, created_at, updated_at
+            FROM ordered_comments
+            ORDER BY
+                comment_level ASC,
+                is_pinned DESC,
+                created_at ASC
+            `
 
 	rows, err := pcr.db.QueryContext(ctx, query, postID)
 	if err != nil {
+		log.Error("Failed to list comments for post", slog.String("post_id", postID.String()), slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to find comments by post id: %v", err), 0)
 	}
 	defer rows.Close()
@@ -131,19 +151,24 @@ func (pcr *PostgresCommentsRepository) FindAllByPostID(ctx context.Context, post
 			&comment.UpdatedAt,
 		)
 		if err != nil {
+			log.Error("Failed to scan comment", slog.Any("error", err))
 			return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan comment: %v", err), 0)
 		}
 		comments = append(comments, comment)
 	}
 
 	if err = rows.Err(); err != nil {
+		log.Error("Error iterating comments", slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("error iterating comments: %v", err), 0)
 	}
 
+	log.Info("Comments listed for post", slog.String("post_id", postID.String()), slog.Int("count", len(comments)))
 	return comments, nil
 }
 
 func (pcr *PostgresCommentsRepository) FindByIDIgnoreActive(ctx context.Context, id uuid.UUID) (*model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
         SELECT 
             id, post_id, user_id, parent_comment_id, content,
@@ -167,15 +192,20 @@ func (pcr *PostgresCommentsRepository) FindByIDIgnoreActive(ctx context.Context,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			log.Warn("Comment not found (ignore active)", slog.String("comment_id", id.String()))
 			return nil, sql.ErrNoRows
 		}
+		log.Error("Failed to find comment by ID (ignore active)", slog.String("comment_id", id.String()), slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to find comment by id: %v", err), 0)
 	}
 
+	log.Info("Comment found (ignore active)", slog.String("comment_id", comment.ID.String()))
 	return &comment, nil
 }
 
 func (pcr *PostgresCommentsRepository) SetActive(ctx context.Context, id uuid.UUID, active bool) (*model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
         UPDATE comments 
         SET active = $1, 
@@ -200,16 +230,21 @@ func (pcr *PostgresCommentsRepository) SetActive(ctx context.Context, id uuid.UU
 		&comment.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
+		log.Warn("Comment not found for SetActive", slog.String("comment_id", id.String()))
 		return nil, sql.ErrNoRows
 	}
 	if err != nil {
+		log.Error("Failed to set comment active status", slog.String("comment_id", id.String()), slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to set comment active status: %v", err), 0)
 	}
 
+	log.Info("Comment active status updated", slog.String("comment_id", comment.ID.String()), slog.Bool("active", comment.Active))
 	return &comment, nil
 }
 
 func (pcr *PostgresCommentsRepository) SetPinned(ctx context.Context, id uuid.UUID, isPinned bool) (*model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
         UPDATE comments 
         SET is_pinned = $1, 
@@ -234,16 +269,21 @@ func (pcr *PostgresCommentsRepository) SetPinned(ctx context.Context, id uuid.UU
 		&comment.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
+		log.Warn("Comment not found for SetPinned", slog.String("comment_id", id.String()))
 		return nil, sql.ErrNoRows
 	}
 	if err != nil {
+		log.Error("Failed to set comment pinned status", slog.String("comment_id", id.String()), slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to set comment pinned status: %v", err), 0)
 	}
 
+	log.Info("Comment pinned status updated", slog.String("comment_id", comment.ID.String()), slog.Bool("is_pinned", comment.IsPinned))
 	return &comment, nil
 }
 
 func (pcr *PostgresCommentsRepository) FindPendingForModeration(ctx context.Context) ([]model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
         SELECT 
             id, post_id, user_id, parent_comment_id, content,
@@ -255,6 +295,7 @@ func (pcr *PostgresCommentsRepository) FindPendingForModeration(ctx context.Cont
 
 	rows, err := pcr.db.QueryContext(ctx, query)
 	if err != nil {
+		log.Error("Failed to list pending comments for moderation", slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to find pending comments for moderation: %v", err), 0)
 	}
 	defer rows.Close()
@@ -275,33 +316,41 @@ func (pcr *PostgresCommentsRepository) FindPendingForModeration(ctx context.Cont
 			&comment.UpdatedAt,
 		)
 		if err != nil {
+			log.Error("Failed to scan pending comment", slog.Any("error", err))
 			return nil, xerrors.WithStackTrace(fmt.Errorf("failed to scan pending comment: %v", err), 0)
 		}
 		comments = append(comments, comment)
 	}
 
 	if err = rows.Err(); err != nil {
+		log.Error("Error iterating pending comments", slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("error iterating pending comments: %v", err), 0)
 	}
 
+	log.Info("Pending comments listed", slog.Int("count", len(comments)))
 	return comments, nil
 }
 
 func (pcr *PostgresCommentsRepository) DeleteByID(ctx context.Context, id uuid.UUID) error {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
         DELETE FROM comments 
         WHERE id = $1
     `
-
 	_, err := pcr.db.ExecContext(ctx, query, id)
 	if err != nil {
+		log.Error("Failed to delete comment", slog.String("comment_id", id.String()), slog.Any("error", err))
 		return xerrors.WithStackTrace(fmt.Errorf("failed to delete comment: %v", err), 0)
 	}
 
+	log.Info("Comment deleted", slog.String("comment_id", id.String()))
 	return nil
 }
 
 func (pcr *PostgresCommentsRepository) UpdateByID(ctx context.Context, comment *model.Comment) (*model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_repository")
+
 	query := `
         UPDATE comments
         SET content = $1,
@@ -310,7 +359,6 @@ func (pcr *PostgresCommentsRepository) UpdateByID(ctx context.Context, comment *
         RETURNING id, post_id, user_id, parent_comment_id, content,
                   status, active, is_pinned, created_at, updated_at
     `
-
 	row := pcr.db.QueryRowContext(ctx, query, comment.Content, comment.ID)
 	var updated model.Comment
 	err := row.Scan(
@@ -326,11 +374,14 @@ func (pcr *PostgresCommentsRepository) UpdateByID(ctx context.Context, comment *
 		&updated.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
+		log.Warn("Comment not found for update", slog.String("comment_id", comment.ID.String()))
 		return nil, sql.ErrNoRows
 	}
 	if err != nil {
+		log.Error("Failed to update comment", slog.String("comment_id", comment.ID.String()), slog.Any("error", err))
 		return nil, xerrors.WithStackTrace(fmt.Errorf("failed to update comment: %v", err), 0)
 	}
 
+	log.Info("Comment updated", slog.String("comment_id", updated.ID.String()))
 	return &updated, nil
 }

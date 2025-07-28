@@ -1,4 +1,4 @@
-CREATE TABLE refresh_tokens(
+CREATE TABLE IF NOT EXISTS refresh_tokens(
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   token_hash VARCHAR(255) NOT NULL UNIQUE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

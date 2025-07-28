@@ -14,9 +14,9 @@ import (
 	userDelivery "github.com/Guizzs26/personal-blog/internal/modules/identity/delivery"
 	userRepository "github.com/Guizzs26/personal-blog/internal/modules/identity/repository"
 	userService "github.com/Guizzs26/personal-blog/internal/modules/identity/service"
-	"github.com/Guizzs26/personal-blog/internal/modules/posts/delivery"
-	"github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
-	"github.com/Guizzs26/personal-blog/internal/modules/posts/service"
+	postDelivery "github.com/Guizzs26/personal-blog/internal/modules/posts/delivery"
+	postRepo "github.com/Guizzs26/personal-blog/internal/modules/posts/repository"
+	postService "github.com/Guizzs26/personal-blog/internal/modules/posts/service"
 	"github.com/Guizzs26/personal-blog/internal/server/handlers"
 	"github.com/Guizzs26/personal-blog/pkg/cronx"
 	"github.com/Guizzs26/personal-blog/pkg/jwtx"
@@ -25,40 +25,40 @@ import (
 func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.HandleFunc("GET /health", handlers.HealthCheckHandler)
 
-	// Users module
+	// --- Users & Auth ---
 	userRepo := userRepository.NewPostgresUserRepository(pgConn)
 	userSvc := userService.NewUserService(userRepo)
 	userHandler := userDelivery.NewUserHandler(*userSvc)
-
 	refreshTokenRepo := userRepository.NewPostgresRefreshTokenRepository(pgConn)
-
-	// Auth
 	authService := userService.NewAuthService(userRepo, refreshTokenRepo)
 	githubService := userService.SetupGitHubOAuth()
 	authHandler := userDelivery.NewAuthHandler(*authService, *githubService)
 
+	// Start cron jobs
 	setupCron(authService)
 
-	// Category module
+	// --- Categories ---
 	categoryRepo := categoryRepo.NewPostgresCategoryRepository(pgConn)
-	categoryService := categoryService.NewCategoryService(categoryRepo)
-	categoryHandler := categoryDelivery.NewCategoryHandler(*categoryService)
+	categorySvc := categoryService.NewCategoryService(categoryRepo)
+	categoryHandler := categoryDelivery.NewCategoryHandler(*categorySvc)
 
-	// Posts module
-	postRepo := repository.NewPostgresPostRepository(pgConn)
-	postService := service.NewPostService(postRepo, categoryRepo)
-	postHandler := delivery.NewPostHandler(*postService)
+	// --- Posts ---
+	postRepo := postRepo.NewPostgresPostRepository(pgConn)
+	postSvc := postService.NewPostService(postRepo, categoryRepo)
+	postHandler := postDelivery.NewPostHandler(*postSvc)
 
-	// Comments module
+	// --- Comments ---
 	commentRepo := commentRepo.NewPostgresCommentsRepository(pgConn)
-	commentService := commentService.NewCommentService(commentRepo, postRepo)
-	commentHandler := commentDelivery.NewCommentHandler(*commentService)
+	commentSvc := commentService.NewCommentService(commentRepo, postRepo)
+	commentHandler := commentDelivery.NewCommentHandler(*commentSvc)
 
+	// --- Category routes ---
 	mux.Handle("POST /category", protectedRoute(categoryHandler.CreateCategoryHandler))
 	mux.Handle("GET /category", protectedRoute(categoryHandler.ListCategoriesHandler))
 	mux.Handle("PATCH /category/{id}", protectedRoute(categoryHandler.UpdateCategoryByIDHandler))
 	mux.Handle("PATCH /category/{id}/toggle-active", protectedRoute(categoryHandler.ToggleCategoryActiveHandler))
 
+	// --- Post routes ---
 	mux.Handle("POST /post", protectedRoute(postHandler.CreatePostHandler))
 	mux.Handle("GET /post", protectedRoute(postHandler.ListPostsHandler))
 	mux.Handle("GET /post/{slug}", protectedRoute(postHandler.GetPostBySlugHandler))
@@ -66,10 +66,14 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	mux.Handle("PATCH /post/{id}", protectedRoute(postHandler.UpdatePostByIDHandler))
 	mux.Handle("DELETE /post/{id}", protectedRoute(postHandler.DeletePostByIDHandler))
 
+	// --- Comment routes ---
 	mux.Handle("POST /comment", protectedRoute(commentHandler.CreateCommentHandler))
 	mux.Handle("GET /post/{id}/comments", protectedRoute(commentHandler.ListPostCommentsHandler))
 
+	// --- User routes ---
 	mux.HandleFunc("POST /user", userHandler.CreateUserHandler)
+
+	// --- Auth routes ---
 	mux.HandleFunc("GET /auth/github/login", authHandler.GitHubLogin)
 	mux.HandleFunc("GET /auth/github/callback", authHandler.GitHubCallback)
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
