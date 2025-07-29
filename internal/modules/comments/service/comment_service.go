@@ -130,6 +130,58 @@ func (cs *CommentService) ListPostComments(ctx context.Context, postID uuid.UUID
 	return cs.organizeCommentsHierarchy(comments), nil
 }
 
+func (cs *CommentService) DeleteComment(ctx context.Context, commentID uuid.UUID) error {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_service")
+
+	log.Debug("Checking comment existence for deletion", slog.String("comment_id", commentID.String()))
+	comment, err := cs.repo.FindByID(ctx, commentID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Warn("Comment not found for deletion", slog.String("comment_id", commentID.String()))
+			return sql.ErrNoRows
+		}
+		log.Error("Error when checking comment existence", slog.String("comment_id", commentID.String()), slog.Any("error", err))
+		return xerrors.WithWrapper(xerrors.New("error when checking comment existence"), err)
+	}
+
+	log.Debug("Deleting comment", slog.String("comment_id", comment.ID.String()))
+	err = cs.repo.DeleteByID(ctx, comment.ID)
+	if err != nil {
+		log.Error("Failed to delete comment", slog.String("comment_id", comment.ID.String()), slog.Any("error", err))
+		return xerrors.WithWrapper(xerrors.New("delete comment service"), err)
+	}
+
+	log.Info("Comment deleted successfully", slog.String("comment_id", comment.ID.String()))
+	return nil
+}
+
+func (cs *CommentService) UpdateComment(ctx context.Context, commentID uuid.UUID, updatedData *model.Comment) (*model.Comment, error) {
+	log := logger.GetLoggerFromContext(ctx).WithGroup("comment_service")
+
+	log.Debug("Checking comment existence for update", slog.String("comment_id", commentID.String()))
+	existingComment, err := cs.repo.FindByID(ctx, commentID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Warn("Comment not found for update", slog.String("comment_id", commentID.String()))
+			return nil, sql.ErrNoRows
+		}
+		log.Error("Error when checking comment existence", slog.String("comment_id", commentID.String()), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("error when checking comment existence"), err)
+	}
+
+	existingComment.Content = updatedData.Content
+
+	log.Debug("Updating comment", slog.String("comment_id", existingComment.ID.String()))
+	updatedComment, err := cs.repo.UpdateByID(ctx, existingComment)
+	if err != nil {
+		log.Error("Failed to update comment", slog.String("comment_id", existingComment.ID.String()), slog.Any("error", err))
+		return nil, xerrors.WithWrapper(xerrors.New("failed to update comment"), err)
+	}
+
+	log.Info("Comment updated successfully", slog.String("comment_id", updatedComment.ID.String()))
+	return updatedComment, nil
+}
+
 func (cs *CommentService) organizeCommentsHierarchy(comments []model.Comment) []CommentResponse {
 	commentMap := make(map[uuid.UUID]*CommentResponse)
 	var topLevelComments []*CommentResponse
@@ -155,7 +207,7 @@ func (cs *CommentService) organizeCommentsHierarchy(comments []model.Comment) []
 		}
 	}
 
-	// pointers -> values - in return 
+	// pointers -> values - in return
 	result := make([]CommentResponse, len(topLevelComments))
 	for i, comment := range topLevelComments {
 		result[i] = *comment

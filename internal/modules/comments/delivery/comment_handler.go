@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -87,4 +88,74 @@ func (ch *CommentHandler) ListPostCommentsHandler(w http.ResponseWriter, r *http
 
 	log.Info("Comments listed successfully", slog.String("post_id", postID.String()), slog.Int("count", len(comments)))
 	httpx.WriteJSON(w, 200, comments)
+}
+
+func (ch *CommentHandler) DeleteCommentByIDHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("delete_comment")
+
+	commentIDStr := r.PathValue("id")
+	commentID, err := uuid.Parse(commentIDStr)
+	if err != nil {
+		log.Warn("Invalid comment ID in route param", slog.String("comment_id", commentIDStr), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid comment ID")
+		return
+	}
+
+	err = ch.service.DeleteComment(ctx, commentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Warn("Comment not found for deletion", slog.String("comment_id", commentID.String()))
+		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Comment not found")
+		return
+	}
+	if err != nil {
+		log.Error("Failed to delete comment", slog.String("comment_id", commentID.String()), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to delete comment")
+		return
+	}
+
+	log.Info("Comment deleted successfully", slog.String("comment_id", commentID.String()))
+	httpx.WriteJSON(w, 204, nil)
+}
+
+func (ch *CommentHandler) UpdateCommentByIDHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLoggerFromContext(ctx).WithGroup("update_comment")
+
+	commentIDStr := r.PathValue("id")
+	commentID, err := uuid.Parse(commentIDStr)
+	if err != nil {
+		log.Warn("Invalid comment ID in route param", slog.String("comment_id", commentIDStr), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid comment ID")
+		return
+	}
+
+	req, err := httpx.Bind[dto.UpdateCommentRequest](r)
+	if err != nil {
+		log.Warn("Failed to bind request", slog.Any("error", err))
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			httpx.WriteValidationErrors(w, validatorx.FormatValidationErrors(ve))
+			return
+		}
+		httpx.WriteError(w, http.StatusBadRequest, httpx.ErrorCodeBadRequest, "Invalid request body")
+		return
+	}
+
+	updatedData := req.ToModel(commentID)
+	existingComment, err := ch.service.UpdateComment(ctx, commentID, &updatedData)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Warn("Comment not found for update", slog.String("comment_id", commentID.String()))
+		httpx.WriteError(w, http.StatusNotFound, httpx.ErrorCodeNotFound, "Comment not found")
+		return
+	}
+	if err != nil {
+		log.Error("Failed to update comment", slog.String("comment_id", commentID.String()), slog.Any("error", err))
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.ErrorCodeInternal, "Failed to update comment")
+		return
+	}
+
+	log.Info("Comment updated successfully", slog.String("comment_id", existingComment.ID.String()))
+	res := dto.ToCommentFullResponse(existingComment)
+
+	httpx.WriteJSON(w, 200, res)
 }

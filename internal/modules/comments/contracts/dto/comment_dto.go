@@ -77,3 +77,13 @@ func ToCommentFullResponse(comment *model.Comment) *CommentFullResponse {
 	}
 }
 
+type UpdateCommentRequest struct {
+	Content string `json:"content" validate:"required,min=1,max=500"`
+}
+
+func (ucr *UpdateCommentRequest) ToModel(commentID uuid.UUID) model.Comment {
+	return model.Comment{
+		ID:      commentID,
+		Content: ucr.Content,
+	}
+}

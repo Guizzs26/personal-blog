@@ -69,6 +69,8 @@ func RegisterHTTPRoutes(mux *http.ServeMux, pgConn *sql.DB) {
 	// --- Comment routes ---
 	mux.Handle("POST /comment", protectedRoute(commentHandler.CreateCommentHandler))
 	mux.Handle("GET /post/{id}/comments", protectedRoute(commentHandler.ListPostCommentsHandler))
+	mux.Handle("DELETE /comment/{id}", protectedRoute(commentHandler.DeleteCommentByIDHandler))
+	mux.Handle("PUT /comment/{id}", protectedRoute(commentHandler.UpdateCommentByIDHandler))
 
 	// --- User routes ---
 	mux.HandleFunc("POST /user", userHandler.CreateUserHandler)
