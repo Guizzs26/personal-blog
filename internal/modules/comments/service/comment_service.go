@@ -131,15 +131,16 @@ func (cs *CommentService) ListPostComments(ctx context.Context, postID uuid.UUID
 }
 
 func (cs *CommentService) organizeCommentsHierarchy(comments []model.Comment) []CommentResponse {
-	commentMap := make(map[uuid.UUID]CommentResponse)
-	var topLevelComments []CommentResponse
+	commentMap := make(map[uuid.UUID]*CommentResponse)
+	var topLevelComments []*CommentResponse
 
 	// create map for all comments
 	for _, comment := range comments {
-		commentMap[comment.ID] = CommentResponse{
+		cr := &CommentResponse{
 			Comment: comment,
 			Replies: []CommentResponse{},
 		}
+		commentMap[comment.ID] = cr
 	}
 
 	// organize hierarchy
@@ -149,10 +150,16 @@ func (cs *CommentService) organizeCommentsHierarchy(comments []model.Comment) []
 		} else {
 			// Reply - add to parent's replies
 			if parent, exists := commentMap[*comment.ParentCommentID]; exists {
-				parent.Replies = append(parent.Replies, commentMap[comment.ID])
-				commentMap[*comment.ParentCommentID] = parent
+				parent.Replies = append(parent.Replies, *commentMap[comment.ID])
 			}
 		}
 	}
-	return topLevelComments
+
+	// pointers -> values - in return 
+	result := make([]CommentResponse, len(topLevelComments))
+	for i, comment := range topLevelComments {
+		result[i] = *comment
+	}
+
+	return result
 }
